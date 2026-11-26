@@ -30,4 +30,41 @@ async function convertImage(file, format) {
   return out;
 }
 
-module.exports = { convertImage };
+// Highest-quality JPG that fits under targetKB; shrinks the dimensions if quality alone isn't enough.
+async function shrinkImage(file, targetKB, { onProgress } = {}) {
+  const limit = targetKB * 1024;
+  const stat = await fs.stat(file);
+  if (stat.size <= limit) throw new Error(`Already smaller than ${label(targetKB)}`);
+
+  const decoded = await (await sharpInput(file)).rotate().flatten({ background: '#ffffff' }).raw().toBuffer({ resolveWithObject: true });
+  const { width, height, channels } = decoded.info;
+  const encode = (scale, quality) => {
+    let img = sharp(decoded.data, { raw: { width, height, channels } });
+    if (scale < 1) img = img.resize(Math.max(1, Math.round(width * scale)));
+    // plain libjpeg is several times faster than mozjpeg, which matters inside the search loop
+    return img.jpeg({ quality, optimiseCoding: true, chromaSubsampling: '4:2:0' }).toBuffer();
+  };
+
+  let best = null;
+  for (let scale = 1, step = 0; scale > 0.05 && !best; scale *= 0.8, step++) {
+    let lo = 40;
+    let hi = 92;
+    while (lo <= hi) {
+      const q = Math.floor((lo + hi) / 2);
+      const buf = await encode(scale, q);
+      if (buf.length <= limit) {
+        best = buf;
+        lo = q + 1;
+      } else hi = q - 1;
+    }
+    if (onProgress) onProgress(Math.min(0.95, (step + 1) * 0.2));
+  }
+  if (!best) throw new Error(`Couldn't get it under ${label(targetKB)}`);
+  const out = await uniqueOutput(file, 'jpg', ` (${label(targetKB).replace(' ', '')})`);
+  await fs.writeFile(out, best);
+  return out;
+}
+
+const label = (kb) => (kb >= 1024 ? `${kb / 1024} MB` : `${kb} KB`);
+
+module.exports = { convertImage, shrinkImage };

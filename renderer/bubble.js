@@ -15,6 +15,7 @@ let press = null; // { x, y, timer, selection: Promise }
 let ring = null; // { files, chips: [{el, action, angle}], held, hot }
 let fadeTimer = null;
 let resultTimer = null;
+let job = null; // set while a conversion runs (the Stop ring can be open on top of it)
 
 // ---------- helpers ----------
 
@@ -102,7 +103,7 @@ function buildRing(actions, vis) {
     el.className = 'chip' + (action.soon ? ' soon' : '');
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
-    el.style.setProperty('--c', COLORS[i % COLORS.length]);
+    el.style.setProperty('--c', action.color || COLORS[i % COLORS.length]);
     el.style.setProperty('--fx', `${c.x - x}px`);
     el.style.setProperty('--fy', `${c.y - y}px`);
     el.style.transitionDelay = `${i * 18}ms`;
@@ -146,27 +147,33 @@ function showHint(text, vis) {
 
 // ---------- open / close ----------
 
-async function openRing(files, held) {
+// preset: show these options instead of asking main (the Stop button, or a message with no options)
+async function openRing(files, held, preset) {
   state = 'ring';
-  ring = { files, chips: [], held, hot: null, vis: null };
+  const my = (ring = { files, chips: [], held, hot: null, vis: null });
   const vis = await window.flick.ringOpen();
   await waitForResize(360);
-  if (!ring) return;
-  ring.vis = vis;
-  const { actions } = await window.flick.actions(files);
-  if (!ring) return;
+  if (ring !== my) return;
+  my.vis = vis;
+  if (preset && preset.message) {
+    showHint(preset.message, vis);
+    my.timer = setTimeout(closeRing, preset.ms || 3500);
+    return;
+  }
+  const actions = preset ? preset.actions : (await window.flick.actions(files)).actions;
+  if (ring !== my) return;
 
-  if (!files.length) {
+  if (!preset && !files.length) {
     showHint('Select a file in File Explorer, or drop one on me', vis);
-    ring.timer = setTimeout(closeRing, 2200);
+    my.timer = setTimeout(closeRing, 2200);
     return;
   }
   if (!actions.length) {
     showHint("Flick can't convert this file type yet", vis);
-    ring.timer = setTimeout(closeRing, 2200);
+    my.timer = setTimeout(closeRing, 2200);
     return;
   }
-  ring.chips = buildRing(actions, vis);
+  my.chips = buildRing(actions, vis);
   if (files.length > 1) showHint(`${files.length} files`, { ...vis, top: center().y - 30, bottom: center().y + 30 });
 }
 
@@ -178,10 +185,20 @@ function closeRing() {
   hintEl.hidden = true;
   window.flick.ringClose();
   if (state === 'ring') {
-    state = 'idle';
-    setClass('idle');
-    wakeUp();
+    if (job) {
+      state = 'running'; // closed the Stop ring: keep showing progress
+    } else {
+      state = 'idle';
+      setClass('idle');
+      bubble.title = '';
+      wakeUp();
+    }
   }
+}
+
+function showMessage(text, ms) {
+  if (ring) closeRing();
+  openRing([], false, { message: text, ms });
 }
 
 function updateHot(clientX, clientY) {
@@ -213,30 +230,53 @@ function updateHot(clientX, clientY) {
 async function choose(chip) {
   if (!ring) return;
   const files = ring.files;
-  if (chip.action.soon) {
-    showHint(`${chip.action.label}${chip.action.sub ? ' (' + chip.action.sub + ')' : ''} is coming in a later update`, ring.vis);
+  const { action } = chip;
+
+  if (action.id === '__stop') {
+    window.flick.cancel();
+    closeRing();
+    return;
+  }
+  if (action.soon) {
+    showHint(`${action.label}${action.sub ? ' (' + action.sub + ')' : ''} is coming in a later update`, ring.vis);
     clearTimeout(ring.timer);
     ring.timer = setTimeout(closeRing, 1800);
     return;
   }
+  if (action.children) {
+    // second ring, e.g. Shrink -> 8 MB / 16 MB / 25 MB; pick one with a click
+    ring.held = false;
+    ring.hot = null;
+    hintEl.hidden = true;
+    ring.chips = buildRing(action.children, ring.vis);
+    return;
+  }
+
   closeRing();
+  job = { files };
   state = 'running';
   setClass(files.length > 1 ? 'running' : 'running indeterminate');
   pctEl.textContent = files.length > 1 ? `0/${files.length}` : '';
   bar.style.strokeDashoffset = CIRC;
 
-  const res = await window.flick.run(chip.action.id, files);
+  const res = await window.flick.run(action.id, files);
+  job = null;
+  if (ring) closeRing();
   clearTimeout(resultTimer);
   if (res.ok) {
     state = 'done';
     setClass('done');
     bubble.title = `Saved ${res.outputs.length} file${res.outputs.length > 1 ? 's' : ''}. Click to show.`;
     resultTimer = setTimeout(resetIdle, 6000);
+  } else if (res.cancelled) {
+    state = 'idle';
+    setClass('idle');
+    wakeUp();
   } else {
     state = 'error';
     setClass('error');
     bubble.title = res.error;
-    resultTimer = setTimeout(resetIdle, 4000);
+    showMessage(res.error, 4000); // closing the message returns the bubble to idle
   }
 }
 
@@ -249,11 +289,10 @@ function resetIdle() {
 }
 
 window.flick.onProgress((p) => {
-  if (state !== 'running') return;
-  if (p.total > 1) {
-    pctEl.textContent = `${p.done}/${p.total}`;
-    bar.style.strokeDashoffset = CIRC * (1 - p.fraction);
-  }
+  if (!job) return;
+  bubble.classList.toggle('indeterminate', !!p.indeterminate);
+  pctEl.textContent = p.label;
+  if (!p.indeterminate) bar.style.strokeDashoffset = CIRC * (1 - p.fraction);
 });
 
 // ---------- pointer input ----------
@@ -323,6 +362,11 @@ bubble.addEventListener('pointerup', async (e) => {
     window.flick.dragEnd();
     if (state === 'dragging') state = 'idle';
     wakeUp();
+    return;
+  }
+  if (p && p.dragOnly && state === 'running' && job) {
+    // tap while converting: offer a Stop button
+    openRing([], false, { actions: [{ id: '__stop', label: 'Stop', color: '#dc2626' }] });
     return;
   }
   if (state === 'opening' && p) {

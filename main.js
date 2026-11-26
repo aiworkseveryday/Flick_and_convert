@@ -1,5 +1,12 @@
-const { app, BrowserWindow, ipcMain, screen, shell, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, screen, shell, Tray, Menu, nativeImage, protocol, net } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('url');
+
+// flick://app/... serves the app's own files. The RAW decoder (WebAssembly in a worker)
+// needs a real origin to load its module and .wasm file.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'flick', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+]);
 const explorer = require('./src/explorer');
 const { actionsFor } = require('./src/actions');
 const { runJob } = require('./src/jobs');
@@ -14,7 +21,6 @@ let mode = 'small';
 let smallPos = null; // top-left of the small window, the bubble's "home"
 let dragStart = null;
 let lastOutput = null;
-let busy = false;
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
@@ -140,23 +146,35 @@ ipcMain.on('open-output', () => {
   if (lastOutput) shell.showItemInFolder(lastOutput);
 });
 
+let abort = null;
+
 ipcMain.handle('run', async (_e, { actionId, files }) => {
-  if (busy) return { ok: false, error: 'Already converting' };
-  busy = true;
+  if (abort) return { ok: false, error: 'Already converting' };
+  abort = new AbortController();
   try {
-    const outputs = await runJob(actionId, files, (p) => {
+    const outputs = await runJob(actionId, files, abort.signal, (p) => {
       if (!win.isDestroyed()) win.webContents.send('progress', p);
     });
     lastOutput = outputs[outputs.length - 1] || null;
     return { ok: true, outputs };
   } catch (err) {
+    if (abort.signal.aborted) return { ok: false, cancelled: true };
     return { ok: false, error: String(err && err.message ? err.message : err) };
   } finally {
-    busy = false;
+    abort = null;
   }
 });
 
+ipcMain.on('cancel', () => abort && abort.abort());
+
 app.whenReady().then(() => {
+  const appRoot = path.resolve(__dirname);
+  protocol.handle('flick', (req) => {
+    const rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, '');
+    const file = path.resolve(appRoot, rel);
+    if (!file.startsWith(appRoot + path.sep)) return new Response('Not found', { status: 404 });
+    return net.fetch(pathToFileURL(file).toString());
+  });
   createWindow();
   createTray();
   explorer.start();

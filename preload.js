@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('flick', {
   selection: () => ipcRenderer.invoke('selection'),
   actions: (files) => ipcRenderer.invoke('actions', files),
   run: (actionId, files) => ipcRenderer.invoke('run', { actionId, files }),
+  cancel: () => ipcRenderer.send('cancel'),
   ringOpen: () => ipcRenderer.invoke('ring-open'),
   ringClose: () => ipcRenderer.send('ring-close'),
   dragStart: () => ipcRenderer.send('drag-start'),

@@ -11,8 +11,11 @@ new file is saved next to the original.
 **Phase 1 (done):** bubble with edge snapping, smart ring that faces away from the screen edge,
 Explorer selection, drag-and-drop, image conversion (JPG, PNG, WEBP, HEIC input), progress ring.
 
+**Phase 2 (done):** video to MP3/WAV/M4A, video to MP4/GIF, audio conversions (FFmpeg, real progress),
+camera RAW (Sony ARW and others) to JPG in full or fast mode (LibRaw via WebAssembly), shrink video to
+8/16/25/50 MB and images to 200 KB–2 MB, tap the bubble while converting to Stop.
+
 **Coming next:**
-- Phase 2: video to audio and other video conversions (FFmpeg), Sony ARW to JPG (full or fast), compress to size
 - Phase 3: Word to PDF (via MS Word), PDF to Word, PDF merge/split/images, ZIP and unzip, passwords
 - Phase 4: OCR copy text, background removal, favourites slot, keyboard shortcut, right-click menu, installer
 
