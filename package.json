@@ -1,0 +1,20 @@
+{
+  "name": "flick",
+  "version": "0.1.0",
+  "description": "Floating bubble file converter",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "heic-convert": "^2.1.0",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "electron": "^45.5.0"
+  },
+  "productName": "Flick"
+}

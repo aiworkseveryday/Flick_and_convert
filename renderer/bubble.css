@@ -1,0 +1,267 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- bubble ---------- */
+
+#bubble {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 72px;
+  height: 72px;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  cursor: grab;
+  transition: opacity 0.4s ease;
+}
+
+#bubble.faded {
+  opacity: 0.5;
+}
+
+#core {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: rgba(22, 22, 30, 0.78);
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  display: grid;
+  place-items: center;
+  transition:
+    transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1),
+    background 0.25s ease;
+}
+
+#bubble.pressed #core {
+  transform: scale(0.9);
+}
+#bubble.droptarget #core {
+  transform: scale(1.12);
+  background: rgba(70, 90, 255, 0.85);
+}
+
+/* AssistiveTouch-like concentric rings */
+.r3,
+.r2,
+.r1 {
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.r3 {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.16);
+}
+.r2 {
+  width: 30px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.3);
+}
+.r1 {
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+#core > * {
+  grid-area: 1 / 1;
+}
+
+#pct {
+  display: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+#tick,
+#cross {
+  display: none;
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* progress ring */
+#progress {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+#progress circle {
+  fill: none;
+  stroke-width: 4;
+}
+#progress .track {
+  stroke: rgba(255, 255, 255, 0.18);
+}
+#progress .bar {
+  stroke: #5b8cff;
+  stroke-linecap: round;
+  stroke-dasharray: 201.06;
+  stroke-dashoffset: 201.06;
+  transition: stroke-dashoffset 0.25s ease;
+}
+
+#bubble.running #progress,
+#bubble.done #progress {
+  opacity: 1;
+}
+#bubble.running .r3,
+#bubble.done .r3,
+#bubble.error .r3 {
+  display: none;
+}
+#bubble.running #pct {
+  display: block;
+}
+#bubble.running.indeterminate #progress {
+  animation: spin 0.9s linear infinite;
+}
+#bubble.running.indeterminate .bar {
+  stroke-dashoffset: 150 !important;
+}
+
+#bubble.done #core {
+  background: rgba(22, 163, 74, 0.92);
+}
+#bubble.done .bar {
+  stroke: #4ade80;
+  stroke-dashoffset: 0 !important;
+}
+#bubble.done #tick {
+  display: block;
+  animation: pop 0.35s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+#bubble.done {
+  cursor: pointer;
+}
+
+#bubble.error #core {
+  background: rgba(220, 38, 38, 0.92);
+}
+#bubble.error #cross {
+  display: block;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(-90deg);
+  }
+  to {
+    transform: rotate(270deg);
+  }
+}
+@keyframes pop {
+  from {
+    transform: scale(0.3);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* ---------- ring ---------- */
+
+#ring {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.chip {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--c);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  transform: translate(var(--fx), var(--fy)) scale(0.2);
+  opacity: 0;
+  transition:
+    transform 0.26s cubic-bezier(0.3, 1.5, 0.5, 1),
+    opacity 0.18s ease,
+    box-shadow 0.15s ease;
+  cursor: pointer;
+}
+
+#ring.open .chip {
+  transform: translate(0, 0) scale(1);
+  opacity: 1;
+}
+
+.chip small {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.85;
+  margin-top: -1px;
+}
+
+.chip.hot {
+  transform: translate(0, 0) scale(1.22) !important;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.9),
+    0 8px 22px rgba(0, 0, 0, 0.45);
+  z-index: 1;
+}
+
+.chip.soon {
+  background: rgba(60, 60, 72, 0.88);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: default;
+}
+.chip.soon small {
+  color: #fbbf24;
+  opacity: 1;
+}
+
+/* ---------- hint ---------- */
+
+#hint {
+  position: absolute;
+  z-index: 4;
+  max-width: 220px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(22, 22, 30, 0.9);
+  color: #fff;
+  font-size: 12.5px;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
