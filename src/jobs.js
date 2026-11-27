@@ -6,6 +6,9 @@ const { wordToPdf, pdfToWord } = require('./convert/word');
 const { lockPdf, mergePdfs, splitPdf } = require('./convert/qpdf');
 const { pdfToImages, imagesToPdf } = require('./convert/pdf');
 const { zip, extract } = require('./convert/archive');
+const { removeBackground } = require('./convert/bg');
+const { imageToText, pdfToText } = require('./convert/ocr');
+const { shrinkPdf } = require('./convert/pdfshrink');
 const { cancelled } = require('./errors');
 
 async function askNewPassword(ask, title, message) {
@@ -57,6 +60,11 @@ function perFile(actionId) {
     'pdf-images': (f, o) => pdfToImages(f, o),
     'pdf-split': (f) => splitPdf(f),
     unzip: (f, o) => extract(f, o),
+    'img-bg': (f, o) => removeBackground(f, o),
+    'img-ocr': (f, o) => imageToText(f, o),
+    'pdf-text': (f, o) => pdfToText(f, o),
+    'pdf-shrink-smaller': (f, o) => shrinkPdf(f, 'smaller', o),
+    'pdf-shrink-smallest': (f, o) => shrinkPdf(f, 'smallest', o),
   }[actionId];
   if (fixed) return fixed;
   let m = /^video-shrink-(\d+)$/.exec(actionId);

@@ -1,6 +1,7 @@
 // Runs a chosen action and drives the progress card.
+const fs = require('fs');
 const path = require('path');
-const { ipcMain, shell } = require('electron');
+const { ipcMain, shell, clipboard } = require('electron');
 const card = require('./card');
 const settings = require('./settings');
 const { runJob } = require('./jobs');
@@ -11,6 +12,7 @@ const { wheelFor } = require('./actions');
 let abort = null;
 let lastOutput = null;
 const finishedListeners = [];
+const TEXT_ACTIONS = new Set(['img-ocr', 'pdf-text']);
 
 function captionOf(actionId, files) {
   let found = null;
@@ -44,11 +46,14 @@ async function run(actionId, files, anchor) {
   try {
     const outputs = await runJob(actionId, files, signal, (p) => card.update({ state: 'running', ...p }), ask);
     lastOutput = outputs[outputs.length - 1] || null;
-    card.update({
-      state: 'done',
-      title: 'Done',
-      detail: outputs.length > 1 ? `Saved ${outputs.length} files` : `Saved ${path.basename(lastOutput)}`,
-    });
+    let detail = outputs.length > 1 ? `Saved ${outputs.length} files` : `Saved ${path.basename(lastOutput)}`;
+    if (TEXT_ACTIONS.has(actionId)) {
+      // the found text goes straight to the clipboard, ready to paste
+      const text = outputs.map((f) => fs.readFileSync(f, 'utf8')).join('\r\n\r\n');
+      clipboard.writeText(text);
+      detail = `Text copied · also saved as ${outputs.length > 1 ? `${outputs.length} .txt files` : path.basename(lastOutput)}`;
+    }
+    card.update({ state: 'done', title: TEXT_ACTIONS.has(actionId) ? 'Text copied' : 'Done', detail });
     if (settings.get('reveal') && lastOutput) shell.showItemInFolder(lastOutput);
     finishedListeners.forEach((fn) => fn(outputs));
   } catch (err) {

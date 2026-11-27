@@ -55,6 +55,9 @@ async function ui(dir) {
       setHot(hitTest(x, y));
     })()`);
 
+  // a pinned favourite shows at the top of the image wheel and in Settings
+  require('./settings').set('favourites', { image: 'img-shrink-500', pdf: 'pdf-shrink-smaller' });
+
   for (const theme of ['light', 'dark']) {
     nativeTheme.themeSource = theme;
     await wait(300);
@@ -73,6 +76,15 @@ async function ui(dir) {
     await wheel.show(anchor, { mode: 'click', files: [pdf] });
     await wait(500);
     await shot(wheel.window(), `${theme}-5-pdf`);
+    // right-click Word: it moves to the top with a star and the caption confirms
+    await wjs(`(() => {
+      const s = slices.find((s) => s.action.label === 'Word');
+      const [x, y] = pt((R_IN + R_OUT) / 2, s.mid);
+      document.dispatchEvent(new MouseEvent('contextmenu', { clientX: x, clientY: y, bubbles: true }));
+    })()`);
+    await wait(500);
+    await shot(wheel.window(), `${theme}-5b-pinned`);
+    require('./settings').set('favourites', { image: 'img-shrink-500', pdf: 'pdf-shrink-smaller' });
     wheel.hide();
 
     // a running card, shown directly since real jobs on small files finish too fast to catch

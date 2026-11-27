@@ -9,6 +9,9 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'flick', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
 ]);
 
+// self-tests keep their own settings (and single-instance lock), so they run beside the real Flick
+if (process.env.FLICK_SELFTEST) app.setPath('userData', path.join(process.env.FLICK_SELFTEST, 'userdata'));
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
@@ -16,8 +19,6 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 function start() {
-  // self-tests keep their own settings so they never touch the real ones
-  if (process.env.FLICK_SELFTEST) app.setPath('userData', path.join(process.env.FLICK_SELFTEST, 'userdata'));
   const settings = require('./src/settings');
   const explorer = require('./src/explorer');
   const hook = require('./src/hook');
@@ -26,6 +27,7 @@ function start() {
   const runner = require('./src/runner');
   const settingsWindow = require('./src/settingsWindow');
   const shelf = require('./src/shelf');
+  const contextMenu = require('./src/contextMenu');
 
   const SHORTCUT = 'Control+Alt+F';
   let tray = null;
@@ -38,6 +40,28 @@ function start() {
     const opts = { openAtLogin: !!settings.get('startWithWindows') };
     if (!app.isPackaged) opts.args = [app.getAppPath()];
     app.setLoginItemSettings(opts);
+  }
+
+  function applyContextMenu() {
+    // only the installed Flick owns the menu entry, so dev runs never repoint it
+    if (!app.isPackaged || process.env.FLICK_SELFTEST) return;
+    if (settings.get('contextMenu')) contextMenu.register();
+    else contextMenu.unregister();
+  }
+
+  // Files from the right-click menu arrive one Flick launch per file; gather them briefly into one wheel.
+  let opened = [];
+  let openTimer = null;
+  function openFromMenu(files) {
+    if (!files.length) return false;
+    opened.push(...files);
+    clearTimeout(openTimer);
+    openTimer = setTimeout(() => {
+      const list = [...new Set(opened)];
+      opened = [];
+      wheel.show(screen.getCursorScreenPoint(), { mode: 'click', files: list });
+    }, 350);
+    return true;
   }
 
   async function openWheelForSelection() {
@@ -63,12 +87,16 @@ function start() {
     settings.on('change', (key) => key === 'shelfOpen' && tray.setContextMenu(trayMenu()));
   }
 
-  app.on('second-instance', () => tray && tray.displayBalloon && tray.displayBalloon({ title: 'Flick', content: 'Flick is already running in the tray.' }));
+  app.on('second-instance', (_e, argv) => {
+    if (openFromMenu(contextMenu.filesFromArgs(argv))) return;
+    if (tray && tray.displayBalloon) tray.displayBalloon({ title: 'Flick', content: 'Flick is already running in the tray.' });
+  });
   app.on('window-all-closed', (e) => e.preventDefault()); // lives in the tray
   app.on('will-quit', () => {
     globalShortcut.unregisterAll();
     hook.stop();
     explorer.stop();
+    require('./src/convert/bg').stop();
   });
 
   app.whenReady().then(() => {
@@ -77,7 +105,9 @@ function start() {
     settings.on('change', (key) => {
       if (key === 'theme') applyTheme();
       if (key === 'startWithWindows') applyLogin();
+      if (key === 'contextMenu') applyContextMenu();
     });
+    applyContextMenu();
 
     const appRoot = path.resolve(__dirname);
     protocol.handle('flick', (req) => {
@@ -99,8 +129,10 @@ function start() {
     createTray();
     explorer.start();
     if (settings.get('shelfOpen')) shelf.open();
+    const launchFiles = contextMenu.filesFromArgs(process.argv);
+    openFromMenu(launchFiles);
     // first run: show the settings window so it's clear Flick is running
-    if (!settings.get('seenWelcome')) {
+    if (!settings.get('seenWelcome') && !launchFiles.length) {
       settingsWindow.open();
       settings.set('seenWelcome', true);
     }
@@ -117,10 +149,8 @@ function start() {
     hook.on('down', (p) => {
       if (wheel.isVisible() && !wheel.contains(screen.screenToDipPoint({ x: p.x, y: p.y }))) wheel.hide();
     });
+    if (process.env.FLICK_SELFTEST) return require('./src/selftest')(process.env.FLICK_SELFTEST);
     hook.start();
-
     globalShortcut.register(SHORTCUT, openWheelForSelection);
-
-    if (process.env.FLICK_SELFTEST) require('./src/selftest')(process.env.FLICK_SELFTEST);
   });
 }

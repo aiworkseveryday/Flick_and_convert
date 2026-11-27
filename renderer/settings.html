@@ -39,10 +39,21 @@
           <p>Wheel for the files selected in Explorer</p>
         </div>
         <div class="how">
+          <div class="keys"><span class="gesture">Right-click</span></div>
+          <p>A file, then Show more options › Convert with Flick</p>
+        </div>
+        <div class="how">
           <div class="keys"><span class="gesture">Shelf</span></div>
           <p>Collect files from different folders</p>
         </div>
       </div>
+
+      <h2>Favourites</h2>
+      <section class="list" id="favs">
+        <div class="row empty" id="favEmpty">
+          <div class="hint">Right-click an option on the wheel to pin it to the top for that kind of file.</div>
+        </div>
+      </section>
 
       <h2>Settings</h2>
       <section class="list">
@@ -52,6 +63,13 @@
             <div class="hint">Shift + drag a file to open the wheel</div>
           </div>
           <input type="checkbox" class="switch" data-key="shiftDrag" />
+        </label>
+        <label class="row">
+          <div>
+            <div class="name">Right-click menu</div>
+            <div class="hint">“Convert with Flick” on files and folders</div>
+          </div>
+          <input type="checkbox" class="switch" data-key="contextMenu" />
         </label>
         <label class="row">
           <div>

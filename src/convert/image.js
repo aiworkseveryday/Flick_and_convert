@@ -67,4 +67,4 @@ async function shrinkImage(file, targetKB, { onProgress } = {}) {
 
 const label = (kb) => (kb >= 1024 ? `${kb / 1024} MB` : `${kb} KB`);
 
-module.exports = { convertImage, shrinkImage };
+module.exports = { convertImage, shrinkImage, sharpInput };

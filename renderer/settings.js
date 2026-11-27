@@ -9,6 +9,32 @@ function render(v) {
   $('folderPath').textContent = v.outputDir || 'Not chosen yet';
   $('folderPath').title = v.outputDir || '';
   $('shelf').textContent = v.shelfOpen ? 'Close shelf' : 'Open shelf';
+  renderFavourites();
+}
+
+async function renderFavourites() {
+  const list = await window.flick.invoke('settings:favourites');
+  const box = $('favs');
+  box.querySelectorAll('.fav-row').forEach((r) => r.remove());
+  $('favEmpty').hidden = list.length > 0;
+  for (const f of list) {
+    const row = document.createElement('div');
+    row.className = 'row fav-row';
+    const text = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = `★ ${f.label}`;
+    const hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = `Top of the wheel for ${f.kindName}`;
+    text.append(name, hint);
+    const btn = document.createElement('button');
+    btn.className = 'pill';
+    btn.textContent = 'Unpin';
+    btn.addEventListener('click', () => window.flick.send('settings:unpin', f.kind));
+    row.append(text, btn);
+    box.appendChild(row);
+  }
 }
 
 window.flick.invoke('settings:get').then(render);

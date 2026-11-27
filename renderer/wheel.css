@@ -76,6 +76,14 @@ body {
   opacity: 0.7;
 }
 
+.slice text.star {
+  fill: var(--accent);
+  font-size: 11px;
+}
+.slice.hot text.star {
+  fill: #fff;
+}
+
 .slice.soon text {
   fill: var(--soon-text);
 }

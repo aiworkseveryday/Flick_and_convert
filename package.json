@@ -1,6 +1,6 @@
 {
   "name": "flick",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Convert files with a flick: Shift + drag a file to open the convert wheel",
   "main": "main.js",
   "scripts": {
@@ -12,14 +12,17 @@
   "type": "commonjs",
   "dependencies": {
     "@neslinesli93/qpdf-wasm": "^0.3.1",
+    "@tesseract.js-data/eng": "^1.0.0",
     "7zip-bin": "^5.2.0",
     "ffmpeg-static": "^5.3.0",
     "heic-convert": "^2.1.0",
     "libraw-wasm": "^1.6.0",
     "node-unrar-js": "^2.0.2",
+    "onnxruntime-node": "^1.31.1",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.5.438",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "electron": "^45.5.0",
@@ -43,6 +46,7 @@
       "src/**",
       "renderer/**",
       "assets/**",
+      "models/*.onnx",
       "package.json",
       "!test/**",
       "!**/*.md",
@@ -50,7 +54,9 @@
       "!node_modules/pdfjs-dist/{legacy,types,image_decoders}/**",
       "!node_modules/**/*.map",
       "!node_modules/7zip-bin/win/{ia32,arm64}/**",
-      "!node_modules/@napi-rs/**"
+      "!node_modules/@napi-rs/**",
+      "!node_modules/onnxruntime-node/bin/napi-v*/{darwin,linux}/**",
+      "!node_modules/@tesseract.js-data/eng/4.0.0/**"
     ],
     "win": {
       "target": [

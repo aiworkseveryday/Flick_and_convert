@@ -14,6 +14,8 @@ const DEFAULTS = {
   shelfFiles: [],
   shelfPos: null, // { x, y } of the shelf window
   seenWelcome: false,
+  favourites: {}, // kind of file -> pinned action id (top slot of the wheel)
+  contextMenu: true, // "Convert with Flick" in Explorer's right-click menu
 };
 
 class Settings extends EventEmitter {

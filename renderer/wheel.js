@@ -62,7 +62,7 @@ function draw() {
   const span = 360 / n;
   level.actions.forEach((action, i) => {
     const mid = -90 + i * span;
-    const g = el('g', { class: 'slice' + (action.soon ? ' soon' : '') });
+    const g = el('g', { class: 'slice' + (action.soon ? ' soon' : '') + (action.fav ? ' fav' : '') });
     const path = el('path', { d: n === 1 ? ringPath() : sectorPath(mid - span / 2, mid + span / 2), 'fill-rule': 'evenodd' });
     g.appendChild(path);
 
@@ -77,6 +77,12 @@ function draw() {
       const s = el('text', { x: tx, y: ty + 9, class: 'sub' });
       s.textContent = sub;
       g.appendChild(s);
+    }
+    if (action.fav) {
+      const [sx, sy] = n === 1 ? [C, C - R_OUT + 14] : pt(R_OUT - 13, mid);
+      const star = el('text', { x: sx, y: sy, class: 'star' });
+      star.textContent = '★';
+      g.appendChild(star);
     }
     slicesEl.appendChild(g);
     slices.push({ g, action, mid, span });
@@ -103,7 +109,7 @@ function updateLabels() {
   captionEl.classList.remove('hot');
   if (inChild) {
     hubPill.textContent = hot === 'hub' ? '‹ Back' : state.hub;
-    captionEl.textContent = hot === 'hub' ? 'Back' : level.caption;
+    captionEl.textContent = hot === 'hub' ? 'Back' : state.note || level.caption;
     return;
   }
   hubPill.textContent = state.hub;
@@ -114,7 +120,7 @@ function updateLabels() {
         ? 'Drop here'
         : 'Select a file in Explorer first';
   }
-  else captionEl.textContent = state.mode === 'drag' ? 'Drop on a slice' : 'Pick an option';
+  else captionEl.textContent = state.note || (state.mode === 'drag' ? 'Drop on a slice' : 'Click an option · right-click pins it');
 }
 
 // ---------- hit testing ----------
@@ -272,7 +278,29 @@ document.addEventListener('click', (e) => {
   } else if (hot) choose(hot, state.files);
   else close();
 });
-document.addEventListener('contextmenu', (e) => {
+// Right-click a slice to pin it to the top of the wheel for this kind of file; anywhere else closes.
+document.addEventListener('contextmenu', async (e) => {
   e.preventDefault();
-  close();
+  if (!state) return;
+  const hot = hitTest(e.clientX, e.clientY);
+  if (!hot || hot === 'hub' || hot.action.soon || hot.action.children) {
+    if (!hot) close();
+    return;
+  }
+  const mine = state;
+  const { pinned, kindName, info } = await window.flick.invoke('wheel:fav', { actionId: hot.action.id, files: state.files });
+  if (state !== mine) return;
+  state.levels[0].actions = info.actions;
+  if (state.levels.length > 1) {
+    const parent = info.actions.find((a) => a.id === state.levels[1].parent.id);
+    if (parent) state.levels[1].actions = parent.children;
+  }
+  state.hot = null;
+  state.note = pinned ? `★ Pinned for ${kindName}` : `Unpinned for ${kindName}`;
+  draw();
+  setTimeout(() => {
+    if (state !== mine) return;
+    state.note = null;
+    updateLabels();
+  }, 1800);
 });

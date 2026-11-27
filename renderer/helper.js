@@ -3,6 +3,7 @@
 const TASKS = {
   raw: () => import('./raw-task.js'),
   'pdf-images': () => import('./pdf-task.js'),
+  'pdf-text': () => import('./pdf-text-task.js'),
 };
 
 window.helperApi.onJob(async ({ id, type, payload }) => {

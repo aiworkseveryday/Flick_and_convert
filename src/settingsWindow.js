@@ -45,6 +45,12 @@ nativeTheme.on('updated', () => win && !win.isDestroyed() && win.setBackgroundCo
 
 ipcMain.handle('settings:get', () => settings.all());
 ipcMain.on('settings:set', (_e, key, value) => settings.set(key, value));
+ipcMain.handle('settings:favourites', () => require('./actions').favouriteList());
+ipcMain.on('settings:unpin', (_e, kind) => {
+  const favs = { ...(settings.get('favourites') || {}) };
+  delete favs[kind];
+  settings.set('favourites', favs);
+});
 ipcMain.handle('settings:pick-folder', async () => {
   const r = await dialog.showOpenDialog(win, { title: 'Save converted files to', properties: ['openDirectory', 'createDirectory'] });
   if (r.canceled || !r.filePaths[0]) return null;

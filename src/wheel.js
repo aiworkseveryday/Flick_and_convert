@@ -1,7 +1,7 @@
 // The wheel window: shown at the cursor for a Shift-drag, the shortcut or the shelf.
 const path = require('path');
 const { BrowserWindow, ipcMain, screen } = require('electron');
-const { wheelFor } = require('./actions');
+const { wheelFor, toggleFavourite } = require('./actions');
 
 const W = 360;
 const H = 410;
@@ -81,6 +81,8 @@ function actionAllowed(actionId, files) {
 }
 
 ipcMain.handle('wheel:info', (_e, files) => wheelFor(files));
+// right-click on a slice pins it to the top slot for this kind of file (or unpins it)
+ipcMain.handle('wheel:fav', (_e, { actionId, files }) => ({ ...toggleFavourite(actionId, files), info: wheelFor(files) }));
 ipcMain.on('wheel:close', () => hide());
 ipcMain.on('wheel:sticky', () => {
   if (shown) shown.mode = 'click';
