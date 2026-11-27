@@ -8,6 +8,13 @@ const path = require('path');
 const { app, nativeTheme, screen } = require('electron');
 const { runJob } = require('./jobs');
 
+// packaged builds have no console, so results also go to <folder>/selftest.log
+let logFile = null;
+const log = (...a) => {
+  console.log(...a);
+  if (logFile) fs.appendFileSync(logFile, a.map(String).join(' ') + '\n');
+};
+
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function jobs(listFile) {
@@ -21,9 +28,9 @@ async function jobs(listFile) {
       const out = await runJob(action, files || [file], new AbortController().signal, (p) => (last = p.fraction), ask);
       const st = fs.statSync(out[0]);
       const what = st.isDirectory() ? `${fs.readdirSync(out[0]).length} items` : `${(st.size / 1024).toFixed(0)} KB`;
-      console.log(`OK   ${action.padEnd(16)} ${((Date.now() - t) / 1000).toFixed(1)}s  ${what}  progress=${last.toFixed(2)}  ${path.basename(out[0])}`);
+      log(`OK   ${action.padEnd(16)} ${((Date.now() - t) / 1000).toFixed(1)}s  ${what}  progress=${last.toFixed(2)}  ${path.basename(out[0])}`);
     } catch (e) {
-      console.log(`FAIL ${action.padEnd(16)} ${e.message}`);
+      log(`FAIL ${action.padEnd(16)} ${e.message}`);
     }
   }
 }
@@ -97,13 +104,15 @@ async function ui(dir) {
 }
 
 module.exports = function selftest(dir) {
+  logFile = path.join(dir, 'selftest.log');
+  fs.writeFileSync(logFile, '');
   setTimeout(async () => {
     try {
       if (process.env.FLICK_SELFTEST_JOBS) await jobs(process.env.FLICK_SELFTEST_JOBS);
       else await ui(dir);
-      console.log('SELFTEST OK');
+      log('SELFTEST OK');
     } catch (e) {
-      console.log('SELFTEST FAIL', e);
+      log('SELFTEST FAIL', e && e.stack);
     }
     app.quit();
   }, 1200);
