@@ -1,6 +1,6 @@
 {
   "name": "flick",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Convert files with a flick: Shift + drag a file to open the convert wheel",
   "main": "main.js",
   "scripts": {
