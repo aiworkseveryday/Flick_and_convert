@@ -2,7 +2,7 @@
 const fs = require('fs/promises');
 const path = require('path');
 const createModule = require('@neslinesli93/qpdf-wasm');
-const { uniqueOutput } = require('./output');
+const { uniqueOutput, uniqueFolder } = require('./output');
 
 // A fresh module per call keeps the virtual file system clean and frees memory afterwards.
 // This build ignores the print/printErr hooks and writes straight to the console, so capture that.
@@ -69,23 +69,11 @@ async function mergePdfs(files) {
 // One PDF per page, in a "<name> pages" folder next to the original.
 async function splitPdf(file) {
   if (await isLocked(file)) throw new Error('This PDF is password protected');
-  const createDir = async () => {
-    const base = path.join(path.dirname(file), `${path.basename(file, path.extname(file))} pages`);
-    for (let n = 0; ; n++) {
-      const dir = n === 0 ? base : `${base} (${n})`;
-      try {
-        await fs.mkdir(dir);
-        return dir;
-      } catch (e) {
-        if (e.code !== 'EEXIST') throw e;
-      }
-    }
-  };
   const { q, code, log } = await qpdf(['/in.pdf', '--split-pages', '/out/page-%d.pdf'], { '/in.pdf': await fs.readFile(file) }, ['/out']);
   if (code !== 0 && code !== 3) throw new Error(lastLine(log));
   const names = q.FS.readdir('/out').filter((n) => n.endsWith('.pdf'));
   if (names.length < 2) throw new Error('This PDF has only one page');
-  const dir = await createDir();
+  const dir = await uniqueFolder(file, `${path.basename(file, path.extname(file))} pages`);
   for (const n of names) await fs.writeFile(path.join(dir, n), q.FS.readFile(`/out/${n}`));
   return dir;
 }

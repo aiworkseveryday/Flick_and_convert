@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'" />
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="card.css" />
+  </head>
+  <body>
+    <div id="card">
+      <div id="badge">
+        <svg id="ring" viewBox="0 0 48 48">
+          <circle class="track" cx="24" cy="24" r="20" />
+          <circle class="bar" cx="24" cy="24" r="20" />
+        </svg>
+        <span id="pct"></span>
+        <svg id="tick" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+        <svg id="cross" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17" /></svg>
+      </div>
+      <div id="text">
+        <div id="title"></div>
+        <div id="detail"></div>
+      </div>
+      <button id="action"></button>
+      <button id="close" title="Close">
+        <svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17" /></svg>
+      </button>
+    </div>
+    <script src="card.js"></script>
+  </body>
+</html>

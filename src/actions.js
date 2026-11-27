@@ -111,4 +111,46 @@ function actionsFor(files) {
   }
 }
 
-module.exports = { actionsFor, kindOf, extOf };
+// Text for the caption pill under the wheel.
+const CAPTIONS = {
+  'img-pdf': 'Make a PDF',
+  'img-shrink': 'Shrink to a size',
+  'video-shrink': 'Shrink to a size',
+  'zip-menu': 'Make a ZIP',
+  zip: 'Make a ZIP',
+  'zip-lock': 'ZIP with a password',
+  'pdf-images': 'Save pages as images',
+  'pdf-split': 'One PDF per page',
+  'pdf-merge': 'Merge into one PDF',
+  'pdf-lock': 'Add a password',
+  unzip: 'Extract here',
+  'raw-jpg-full': 'JPG from the full RAW',
+  'raw-jpg-fast': 'JPG from the built-in preview',
+};
+
+function captionFor(action) {
+  if (action.soon) return `${action.label} is coming soon`;
+  if (CAPTIONS[action.id]) return CAPTIONS[action.id];
+  if (/-shrink-/.test(action.id)) return `Shrink to ${action.label}`;
+  return `Convert to ${action.label}`;
+}
+
+// Adds captions to a tree of actions.
+function withCaptions(actions) {
+  return actions.map((a) => ({ ...a, caption: captionFor(a), children: a.children ? withCaptions(a.children) : undefined }));
+}
+
+// Short label for the wheel's hub: "ARW", "PDF", "3 JPG", "3 files", "FOLDER".
+function hubLabel(files) {
+  if (!files || !files.length) return 'Drop';
+  const exts = [...new Set(files.map((f) => (kindOf(f) === 'folder' ? 'FOLDER' : extOf(f).toUpperCase() || 'FILE')))];
+  if (exts.length === 1) return files.length > 1 ? `${files.length} ${exts[0]}` : exts[0];
+  return `${files.length} files`;
+}
+
+function wheelFor(files) {
+  const { kind, actions } = actionsFor(files);
+  return { kind, actions: withCaptions(actions), hub: hubLabel(files) };
+}
+
+module.exports = { actionsFor, wheelFor, hubLabel, kindOf, extOf };

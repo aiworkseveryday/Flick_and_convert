@@ -2,7 +2,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs/promises');
 const path = require('path');
-const { uniqueOutput } = require('./output');
+const { uniqueOutput, uniqueFolder } = require('./output');
 const { needPassword, wrongPassword, cancelled } = require('../errors');
 
 const SEVEN_ZIP = require('7zip-bin').path7za.replace('app.asar', 'app.asar.unpacked');
@@ -57,17 +57,8 @@ async function zip(files, { password, onProgress, signal } = {}) {
 }
 
 async function newFolderFor(file) {
-  let base = path.basename(file).replace(/\.(tar\.gz|tar\.bz2|tar\.xz|tgz|zip|rar|7z|tar|gz)$/i, '');
-  base = path.join(path.dirname(file), base || 'Extracted');
-  for (let n = 0; ; n++) {
-    const dir = n === 0 ? base : `${base} (${n})`;
-    try {
-      await fs.mkdir(dir);
-      return dir;
-    } catch (e) {
-      if (e.code !== 'EEXIST') throw e;
-    }
-  }
+  const base = path.basename(file).replace(/\.(tar\.gz|tar\.bz2|tar\.xz|tgz|zip|rar|7z|tar|gz)$/i, '');
+  return uniqueFolder(file, base || 'Extracted');
 }
 
 async function extract7z(file, dir, password, opts) {

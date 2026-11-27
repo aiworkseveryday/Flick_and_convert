@@ -1,0 +1,155 @@
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+}
+
+#stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 360px;
+  height: 410px;
+  opacity: 0;
+  transform: scale(0.82);
+  transform-origin: 180px 180px;
+  transition:
+    opacity 0.14s ease,
+    transform 0.2s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+#stage.open {
+  opacity: 1;
+  transform: scale(1);
+}
+
+#wheel {
+  display: block;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.32));
+  overflow: visible;
+}
+
+.rim {
+  fill: var(--rim);
+  stroke: var(--rim-line);
+  stroke-width: 1.5;
+}
+.gloss-a {
+  stop-color: var(--rim-line);
+}
+.gloss-b {
+  stop-color: transparent;
+}
+.rim-gloss {
+  fill: url(#rimShade);
+  pointer-events: none;
+}
+
+.slice path {
+  fill: var(--slice);
+  stroke: var(--slice);
+  stroke-width: 10;
+  stroke-linejoin: round;
+  transition:
+    fill 0.14s ease,
+    stroke 0.14s ease;
+}
+
+.slice text {
+  fill: var(--slice-text);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  transition: fill 0.14s ease;
+}
+
+.slice text.sub {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.slice.soon text {
+  fill: var(--soon-text);
+}
+.slice.soon text.sub {
+  fill: #d97706;
+  opacity: 1;
+}
+
+.slice.hot path {
+  fill: url(#hotFill);
+  stroke: url(#hotFill);
+}
+.slice.hot text {
+  fill: #fff;
+}
+.slice.hot.soon path {
+  fill: var(--slice-2);
+  stroke: var(--slice-2);
+}
+.slice.hot.soon text {
+  fill: var(--slice-text);
+}
+
+.hub-well {
+  fill: var(--rim);
+}
+.hub {
+  fill: var(--hub);
+  transition: fill 0.14s ease;
+}
+.hub.hot {
+  fill: var(--accent-soft);
+}
+
+#hubPill {
+  position: absolute;
+  left: 180px;
+  top: 180px;
+  transform: translate(-50%, -50%);
+  max-width: 92px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+#caption {
+  position: absolute;
+  left: 180px;
+  top: 372px;
+  transform: translateX(-50%);
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: var(--rim);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  transition: color 0.14s ease;
+}
+#caption.hot {
+  color: var(--accent-2);
+}
+@media (prefers-color-scheme: dark) {
+  #caption.hot {
+    color: #ff9a5c;
+  }
+}

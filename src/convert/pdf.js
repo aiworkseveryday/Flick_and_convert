@@ -5,24 +5,12 @@ const sharp = require('sharp');
 const heicConvert = require('heic-convert');
 const { PDFDocument } = require('pdf-lib');
 const helper = require('../helper');
-const { uniqueOutput } = require('./output');
+const { uniqueOutput, uniqueFolder } = require('./output');
 const { cancelled } = require('../errors');
-
-async function newFolder(base) {
-  for (let n = 0; ; n++) {
-    const dir = n === 0 ? base : `${base} (${n})`;
-    try {
-      await fs.mkdir(dir);
-      return dir;
-    } catch (e) {
-      if (e.code !== 'EEXIST') throw e;
-    }
-  }
-}
 
 async function pdfToImages(file, { onProgress, signal } = {}) {
   const name = path.basename(file, path.extname(file));
-  const dir = await newFolder(path.join(path.dirname(file), `${name} images`));
+  const dir = await uniqueFolder(file, `${name} images`);
   try {
     await helper.call('pdf-images', { file, dir, base: name }, { onProgress, signal, timeoutMs: 10 * 60000 });
   } catch (e) {

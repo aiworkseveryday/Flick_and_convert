@@ -1,10 +1,17 @@
 const fs = require('fs/promises');
 const path = require('path');
+const settings = require('../settings');
 
-// photo.png -> photo.jpg next to the original; photo (1).jpg if that already exists.
+// Where results go: next to the original, or the one folder chosen in Settings.
+function outDir(file) {
+  const custom = settings.get('outputDir');
+  return !settings.get('saveNextToOriginal') && custom ? custom : path.dirname(file);
+}
+
+// photo.png -> photo.jpg; photo (1).jpg if that already exists.
 // suffix: clip.mp4 + ' (16MB)' -> clip (16MB).mp4
 async function uniqueOutput(file, ext, suffix = '') {
-  const dir = path.dirname(file);
+  const dir = outDir(file);
   const base = path.basename(file, path.extname(file)) + suffix;
   for (let n = 0; ; n++) {
     const candidate = path.join(dir, n === 0 ? `${base}.${ext}` : `${base} (${n}).${ext}`);
@@ -16,4 +23,18 @@ async function uniqueOutput(file, ext, suffix = '') {
   }
 }
 
-module.exports = { uniqueOutput };
+// Creates a new folder named `name` (or "name (1)", ...) in the output location for `file`.
+async function uniqueFolder(file, name) {
+  const base = path.join(outDir(file), name);
+  for (let n = 0; ; n++) {
+    const dir = n === 0 ? base : `${base} (${n})`;
+    try {
+      await fs.mkdir(dir);
+      return dir;
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+    }
+  }
+}
+
+module.exports = { uniqueOutput, uniqueFolder, outDir };

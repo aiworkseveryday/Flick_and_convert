@@ -1,0 +1,62 @@
+/* Flick colours. Follows Windows light/dark (or the Theme setting); orange accent in both. */
+:root {
+  color-scheme: light dark;
+  --accent: #f47533;
+  --accent-2: #e2561c;
+  --accent-soft: rgba(244, 117, 51, 0.16);
+  --ok: #16a34a;
+  --bad: #dc2626;
+  --font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+
+  /* light */
+  --bg: #f6f4f1;
+  --surface: #ffffff;
+  --surface-2: #f1eeea;
+  --line: rgba(30, 20, 10, 0.1);
+  --text: #1c1916;
+  --text-2: #6b645d;
+  --shadow: 0 10px 30px rgba(40, 25, 10, 0.18);
+
+  /* wheel */
+  --rim: rgba(214, 211, 207, 0.94);
+  --rim-line: rgba(255, 255, 255, 0.7);
+  --slice: #f7f5f2;
+  --slice-2: #ebe7e2;
+  --slice-text: #2a2521;
+  --hub: #f2efeb;
+  --soon-text: #aaa39b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0d0c;
+    --surface: #1d1a18;
+    --surface-2: #26221f;
+    --line: rgba(255, 240, 225, 0.1);
+    --text: #f6f1ec;
+    --text-2: #a59d95;
+    --shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+
+    --rim: rgba(52, 48, 45, 0.95);
+    --rim-line: rgba(255, 255, 255, 0.08);
+    --slice: #2e2a27;
+    --slice-2: #25221f;
+    --slice-text: #f1ebe5;
+    --hub: #3a3532;
+    --soon-text: #756d66;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  color: var(--text);
+}

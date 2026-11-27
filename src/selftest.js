@@ -1,18 +1,17 @@
 // Dev only.
-//   FLICK_SELFTEST=<folder>  drives the bubble with <folder>/sample.png, saves screenshots of each stage
-//                            into that folder, then quits.
-//   FLICK_SELFTEST_JOBS=<json file>  runs [{ action, file }] through the real converters (including the
-//                            RAW decoder window) and prints timings, then quits.
+//   FLICK_SELFTEST=<folder>                screenshots of the wheel and card (light and dark) into <folder>,
+//                                          using <folder>/sample.png and <folder>/test.pdf
+//   + FLICK_SELFTEST_JOBS=<json file>      instead runs [{ action, file | files, passwords? }] through the
+//                                          real converters and prints timings
 const fs = require('fs');
 const path = require('path');
-const { app } = require('electron');
+const { app, nativeTheme, screen } = require('electron');
 const { runJob } = require('./jobs');
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function jobs(listFile) {
   const list = JSON.parse(fs.readFileSync(listFile, 'utf8'));
-  // entries: { action, file | files, passwords?: [answers the password window would give] }
   for (const { action, file, files, passwords = [] } of list) {
     const t = Date.now();
     let last = 0;
@@ -29,76 +28,70 @@ async function jobs(listFile) {
   }
 }
 
-module.exports = function selftest(win, dir) {
-  const shot = async (name) => {
-    const img = await win.webContents.capturePage();
-    fs.writeFileSync(path.join(dir, `${name}.png`), img.toPNG());
-  };
-  const js = (code) => win.webContents.executeJavaScript(code);
+async function ui(dir) {
+  const wheel = require('./wheel');
+  const card = require('./card');
+  const runner = require('./runner');
+  const shot = async (w, name) => fs.writeFileSync(path.join(dir, `${name}.png`), (await w.webContents.capturePage()).toPNG());
+  const wjs = (code) => wheel.window().webContents.executeJavaScript(code);
+  const wa = screen.getPrimaryDisplay().workArea;
+  const anchor = { x: wa.x + wa.width / 2, y: wa.y + wa.height / 2 - 80 };
+  const png = path.join(dir, 'sample.png');
+  const pdf = path.join(dir, 'test.pdf');
 
-  win.webContents.once('did-finish-load', async () => {
+  // hover the slice whose label is `label` (or the hub)
+  const hover = (label) =>
+    wjs(`(() => {
+      const s = ${label === 'hub' ? "'hub'" : `slices.find((s) => s.action.label === ${JSON.stringify(label)})`};
+      if (s === 'hub') return setHot('hub');
+      const [x, y] = pt((R_IN + R_OUT) / 2, s.mid);
+      setHot(hitTest(x, y));
+    })()`);
+
+  for (const theme of ['light', 'dark']) {
+    nativeTheme.themeSource = theme;
+    await wait(300);
+    await wheel.show(anchor, { mode: 'drag', files: [png] });
+    await wait(500);
+    await shot(wheel.window(), `${theme}-1-wheel`);
+    await hover('PDF');
+    await wait(250);
+    await shot(wheel.window(), `${theme}-2-hover`);
+    await hover('Shrink');
+    await wait(900); // dwell opens the sizes
+    await shot(wheel.window(), `${theme}-3-children`);
+    await hover('hub');
+    await wait(250);
+    await shot(wheel.window(), `${theme}-4-back`);
+    await wheel.show(anchor, { mode: 'click', files: [pdf] });
+    await wait(500);
+    await shot(wheel.window(), `${theme}-5-pdf`);
+    wheel.hide();
+
+    // a running card, shown directly since real jobs on small files finish too fast to catch
+    await card.update({ state: 'running', title: 'Shrink to 16 MB', detail: 'holiday-video.mp4', fraction: 0.42, label: '42%' }, anchor);
+    await wait(400);
+    await shot(card.window(), `${theme}-6-card-running`);
+    runner.run('img-jpg', [png], anchor);
+    await wait(1500);
+    await shot(card.window(), `${theme}-7-card-done`);
+    await runner.run('pdf-split', [path.join(dir, 'one-page.pdf')], anchor);
+    await wait(300);
+    await shot(card.window(), `${theme}-8-card-error`);
+    card.hide();
+    await wait(300);
+  }
+}
+
+module.exports = function selftest(dir) {
+  setTimeout(async () => {
     try {
-      if (process.env.FLICK_SELFTEST_JOBS) {
-        await jobs(process.env.FLICK_SELFTEST_JOBS);
-        app.quit();
-        return;
-      }
-      if (process.env.FLICK_SELFTEST_RINGS) {
-        // FLICK_SELFTEST_RINGS=<file>|<file>|...: screenshot the ring for each, then the password window
-        const list = process.env.FLICK_SELFTEST_RINGS.split('|');
-        for (let i = 0; i < list.length; i++) {
-          await js(`closeRing(); openRing([${JSON.stringify(list[i])}], false)`);
-          await wait(800);
-          await shot(`ring-${i + 1}`);
-        }
-        await js('closeRing()');
-        const { askPassword } = require('./prompt');
-        const { BrowserWindow } = require('electron');
-        const answer = askPassword({ title: 'Lock the ZIP', message: "Choose a password. You'll need it to open the ZIP.", confirm: true });
-        await wait(1200);
-        const pw = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().endsWith('prompt.html'));
-        fs.writeFileSync(path.join(dir, 'prompt.png'), (await pw.webContents.capturePage()).toPNG());
-        console.log('prompt focused:', pw.isFocused());
-        pw.webContents.executeJavaScript(`document.getElementById('pw').value='abc'; document.getElementById('pw2').value='abc'; document.getElementById('ok').click()`);
-        console.log('prompt answer:', await answer);
-        app.quit();
-        return;
-      }
-      await wait(800);
-      await shot('1-idle');
-      await js(`openRing([${JSON.stringify(path.join(dir, 'sample.png'))}], true)`);
-      await wait(700);
-      await shot('2-ring');
-      await js(`(() => {
-        const r = ring.chips[0].el.getBoundingClientRect();
-        updateHot(r.left + r.width / 2, r.top + r.height / 2);
-      })()`);
-      await wait(300);
-      await shot('3-hot');
-      await js(`choose(ring.hot)`);
-      await wait(1500);
-      await shot('4-done');
-      if (process.env.FLICK_SELFTEST_VIDEO) {
-        await js(`state = 'idle'; setClass('idle'); openRing([${JSON.stringify(process.env.FLICK_SELFTEST_VIDEO)}], false)`);
-        await wait(700);
-        await shot('5-video-ring');
-        await js(`choose(ring.chips.find((c) => c.action.children))`);
-        await wait(500);
-        await shot('6-shrink-ring');
-        await js(`choose(ring.chips[1])`);
-        await wait(2500);
-        await shot('7-progress');
-        await js(`openRing([], false, { actions: [{ id: '__stop', label: 'Stop', color: '#dc2626' }] })`);
-        await wait(600);
-        await shot('8-stop');
-        await js(`choose(ring.chips[0])`);
-        await wait(1200);
-        await shot('9-stopped');
-      }
-      console.log('SELFTEST OK', fs.readdirSync(dir).join(', '));
+      if (process.env.FLICK_SELFTEST_JOBS) await jobs(process.env.FLICK_SELFTEST_JOBS);
+      else await ui(dir);
+      console.log('SELFTEST OK');
     } catch (e) {
       console.log('SELFTEST FAIL', e);
     }
     app.quit();
-  });
+  }, 1200);
 };

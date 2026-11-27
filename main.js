@@ -1,195 +1,104 @@
-const { app, BrowserWindow, ipcMain, screen, shell, Tray, Menu, nativeImage, protocol, net } = require('electron');
+// Flick: a tray app. Shift + drag a file in Explorer to open the wheel, drop it on a slice to convert.
+const { app, screen, Tray, Menu, nativeImage, protocol, net, globalShortcut, nativeTheme } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
-// flick://app/... serves the app's own files. The RAW decoder (WebAssembly in a worker)
-// needs a real origin to load its module and .wasm file.
+// flick://app/... serves the app's own files. The helper window (RAW and PDF work in
+// WebAssembly/workers) needs a real origin to load its modules.
 protocol.registerSchemesAsPrivileged([
   { scheme: 'flick', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
 ]);
-const explorer = require('./src/explorer');
-const { actionsFor } = require('./src/actions');
-const { runJob } = require('./src/jobs');
-const { askPassword } = require('./src/prompt');
-const { isCancelled } = require('./src/errors');
 
-const SMALL = 72; // idle window: bubble + progress ring
-const BIG = 360; // window while the ring menu is open
-const MARGIN = 6;
-
-let win = null;
-let tray = null;
-let mode = 'small';
-let smallPos = null; // top-left of the small window, the bubble's "home"
-let dragStart = null;
-let lastOutput = null;
-
-if (!app.requestSingleInstanceLock()) app.quit();
-
-function workAreaAt(pt) {
-  return screen.getDisplayNearestPoint(pt).workArea;
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  start();
 }
 
-function createWindow() {
-  const wa = screen.getPrimaryDisplay().workArea;
-  smallPos = { x: wa.x + wa.width - SMALL - MARGIN, y: Math.round(wa.y + wa.height * 0.55) };
-  win = new BrowserWindow({
-    width: SMALL,
-    height: SMALL,
-    x: smallPos.x,
-    y: smallPos.y,
-    frame: false,
-    transparent: true,
-    resizable: false,
-    movable: false,
-    minimizable: false,
-    maximizable: false,
-    fullscreenable: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    focusable: false, // clicking the bubble must not steal focus from Explorer
-    hasShadow: false,
-    backgroundColor: '#00000000',
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      sandbox: false,
-    },
-  });
-  win.setAlwaysOnTop(true, 'screen-saver');
-  win.loadFile(path.join(__dirname, 'renderer', 'bubble.html'));
-}
+function start() {
+  const settings = require('./src/settings');
+  const explorer = require('./src/explorer');
+  const hook = require('./src/hook');
+  const wheel = require('./src/wheel');
+  const card = require('./src/card');
+  const runner = require('./src/runner');
 
-function setSmall() {
-  mode = 'small';
-  win.setBounds({ x: smallPos.x, y: smallPos.y, width: SMALL, height: SMALL });
-}
+  const SHORTCUT = 'Control+Alt+F';
+  let tray = null;
 
-// Grow the window around the bubble so the ring has room; the bubble stays put on screen.
-function setBig() {
-  mode = 'big';
-  const off = (BIG - SMALL) / 2;
-  const b = { x: smallPos.x - off, y: smallPos.y - off, width: BIG, height: BIG };
-  win.setBounds(b);
-  const wa = workAreaAt({ x: smallPos.x + SMALL / 2, y: smallPos.y + SMALL / 2 });
-  // visible part of the big window, in window coordinates
-  return {
-    left: Math.max(0, wa.x - b.x),
-    top: Math.max(0, wa.y - b.y),
-    right: Math.min(BIG, wa.x + wa.width - b.x),
-    bottom: Math.min(BIG, wa.y + wa.height - b.y),
-  };
-}
-
-function snap() {
-  const c = { x: smallPos.x + SMALL / 2, y: smallPos.y + SMALL / 2 };
-  const wa = workAreaAt(c);
-  const toLeft = c.x < wa.x + wa.width / 2;
-  const target = {
-    x: toLeft ? wa.x + MARGIN : wa.x + wa.width - SMALL - MARGIN,
-    y: Math.min(Math.max(smallPos.y, wa.y + MARGIN), wa.y + wa.height - SMALL - MARGIN),
-  };
-  const from = { ...smallPos };
-  const steps = 8;
-  let i = 0;
-  const t = setInterval(() => {
-    i++;
-    const k = 1 - Math.pow(1 - i / steps, 3);
-    smallPos = { x: Math.round(from.x + (target.x - from.x) * k), y: Math.round(from.y + (target.y - from.y) * k) };
-    if (mode === 'small') win.setPosition(smallPos.x, smallPos.y);
-    if (i >= steps) clearInterval(t);
-  }, 14);
-}
-
-function createTray() {
-  const icon = nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png'));
-  tray = new Tray(icon);
-  tray.setToolTip('Flick');
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: 'Show / hide bubble', click: () => (win.isVisible() ? win.hide() : win.showInactive()) },
-      { type: 'separator' },
-      { label: 'Quit Flick', click: () => app.quit() },
-    ]),
-  );
-  tray.on('click', () => (win.isVisible() ? win.hide() : win.showInactive()));
-}
-
-// ---------- IPC ----------
-
-ipcMain.handle('selection', async () => {
-  try {
-    return await explorer.getSelection();
-  } catch {
-    return [];
+  function applyTheme() {
+    nativeTheme.themeSource = settings.get('theme');
   }
-});
 
-ipcMain.handle('actions', (_e, files) => actionsFor(files));
+  function applyLogin() {
+    const opts = { openAtLogin: !!settings.get('startWithWindows') };
+    if (!app.isPackaged) opts.args = [app.getAppPath()];
+    app.setLoginItemSettings(opts);
+  }
 
-ipcMain.on('drag-start', () => {
-  dragStart = { cursor: screen.getCursorScreenPoint(), pos: { ...smallPos } };
-});
-ipcMain.on('drag-move', () => {
-  if (!dragStart) return;
-  const c = screen.getCursorScreenPoint();
-  smallPos = { x: dragStart.pos.x + c.x - dragStart.cursor.x, y: dragStart.pos.y + c.y - dragStart.cursor.y };
-  win.setPosition(smallPos.x, smallPos.y);
-});
-ipcMain.on('drag-end', () => {
-  dragStart = null;
-  snap();
-});
+  async function openWheelForSelection() {
+    const files = await explorer.getSelection().catch(() => []);
+    wheel.show(screen.getCursorScreenPoint(), { mode: 'click', files });
+  }
 
-ipcMain.handle('ring-open', () => setBig());
-ipcMain.on('ring-close', () => setSmall());
-
-ipcMain.on('open-output', () => {
-  if (lastOutput) shell.showItemInFolder(lastOutput);
-});
-
-let abort = null;
-
-ipcMain.handle('run', async (_e, { actionId, files }) => {
-  if (abort) return { ok: false, error: 'Already converting' };
-  abort = new AbortController();
-  try {
-    const ask = (info) => askPassword(info, { x: smallPos.x + SMALL / 2, y: smallPos.y + SMALL / 2 });
-    const outputs = await runJob(
-      actionId,
-      files,
-      abort.signal,
-      (p) => {
-        if (!win.isDestroyed()) win.webContents.send('progress', p);
-      },
-      ask,
+  function createTray() {
+    tray = new Tray(nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png')));
+    tray.setToolTip('Flick: Shift + drag a file to convert it');
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: 'Open wheel for Explorer selection', accelerator: SHORTCUT, click: openWheelForSelection },
+        { type: 'separator' },
+        { label: 'Quit Flick', click: () => app.quit() },
+      ]),
     );
-    lastOutput = outputs[outputs.length - 1] || null;
-    return { ok: true, outputs };
-  } catch (err) {
-    if (abort.signal.aborted || isCancelled(err)) return { ok: false, cancelled: true };
-    return { ok: false, error: String(err && err.message ? err.message : err) };
-  } finally {
-    abort = null;
   }
-});
 
-ipcMain.on('cancel', () => abort && abort.abort());
-
-app.whenReady().then(() => {
-  const appRoot = path.resolve(__dirname);
-  protocol.handle('flick', (req) => {
-    const rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, '');
-    const file = path.resolve(appRoot, rel);
-    if (!file.startsWith(appRoot + path.sep)) return new Response('Not found', { status: 404 });
-    return net.fetch(pathToFileURL(file).toString());
+  app.on('second-instance', () => tray && tray.displayBalloon && tray.displayBalloon({ title: 'Flick', content: 'Flick is already running in the tray.' }));
+  app.on('window-all-closed', (e) => e.preventDefault()); // lives in the tray
+  app.on('will-quit', () => {
+    globalShortcut.unregisterAll();
+    hook.stop();
+    explorer.stop();
   });
-  createWindow();
-  createTray();
-  explorer.start();
-  if (process.env.FLICK_SELFTEST) require('./src/selftest')(win, process.env.FLICK_SELFTEST);
-});
 
-app.on('second-instance', () => win && win.showInactive());
-app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => explorer.stop());
+  app.whenReady().then(() => {
+    settings.load(app.getPath('userData'));
+    applyTheme();
+    settings.on('change', (key) => {
+      if (key === 'theme') applyTheme();
+      if (key === 'startWithWindows') applyLogin();
+    });
+
+    const appRoot = path.resolve(__dirname);
+    protocol.handle('flick', (req) => {
+      const rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, '');
+      const file = path.resolve(appRoot, rel);
+      if (!file.startsWith(appRoot + path.sep)) return new Response('Not found', { status: 404 });
+      return net.fetch(pathToFileURL(file).toString());
+    });
+
+    wheel.create();
+    card.create();
+    wheel.setRunHandler((actionId, files, anchor) => runner.run(actionId, files, anchor));
+    createTray();
+    explorer.start();
+
+    // Shift + drag in Explorer: show the wheel under the cursor with options for the dragged files
+    hook.on('drag', async (p) => {
+      if (!settings.get('shiftDrag')) return;
+      const dip = screen.screenToDipPoint({ x: p.x, y: p.y });
+      const inExplorer = p.cls === 'CabinetWClass' || p.cls === 'ExploreWClass';
+      const files = inExplorer ? await explorer.getSelection().catch(() => []) : [];
+      wheel.show(dip, { mode: 'drag', files });
+    });
+    hook.on('up', () => wheel.pointerUp());
+    hook.on('down', (p) => {
+      if (wheel.isVisible() && !wheel.contains(screen.screenToDipPoint({ x: p.x, y: p.y }))) wheel.hide();
+    });
+    hook.start();
+
+    globalShortcut.register(SHORTCUT, openWheelForSelection);
+
+    if (process.env.FLICK_SELFTEST) require('./src/selftest')(process.env.FLICK_SELFTEST);
+  });
+}
