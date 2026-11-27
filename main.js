@@ -16,12 +16,16 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 function start() {
+  // self-tests keep their own settings so they never touch the real ones
+  if (process.env.FLICK_SELFTEST) app.setPath('userData', path.join(process.env.FLICK_SELFTEST, 'userdata'));
   const settings = require('./src/settings');
   const explorer = require('./src/explorer');
   const hook = require('./src/hook');
   const wheel = require('./src/wheel');
   const card = require('./src/card');
   const runner = require('./src/runner');
+  const settingsWindow = require('./src/settingsWindow');
+  const shelf = require('./src/shelf');
 
   const SHORTCUT = 'Control+Alt+F';
   let tray = null;
@@ -41,16 +45,22 @@ function start() {
     wheel.show(screen.getCursorScreenPoint(), { mode: 'click', files });
   }
 
+  function trayMenu() {
+    return Menu.buildFromTemplate([
+      { label: 'Settings', click: () => settingsWindow.open() },
+      { label: shelf.isOpen() ? 'Close shelf' : 'Open shelf', click: () => shelf.toggle() },
+      { label: 'Wheel for Explorer selection', accelerator: SHORTCUT, click: openWheelForSelection },
+      { type: 'separator' },
+      { label: 'Quit Flick', click: () => app.quit() },
+    ]);
+  }
+
   function createTray() {
     tray = new Tray(nativeImage.createFromPath(path.join(__dirname, 'assets', 'tray.png')));
     tray.setToolTip('Flick: Shift + drag a file to convert it');
-    tray.setContextMenu(
-      Menu.buildFromTemplate([
-        { label: 'Open wheel for Explorer selection', accelerator: SHORTCUT, click: openWheelForSelection },
-        { type: 'separator' },
-        { label: 'Quit Flick', click: () => app.quit() },
-      ]),
-    );
+    tray.setContextMenu(trayMenu());
+    tray.on('click', () => settingsWindow.open());
+    settings.on('change', (key) => key === 'shelfOpen' && tray.setContextMenu(trayMenu()));
   }
 
   app.on('second-instance', () => tray && tray.displayBalloon && tray.displayBalloon({ title: 'Flick', content: 'Flick is already running in the tray.' }));
@@ -80,8 +90,20 @@ function start() {
     wheel.create();
     card.create();
     wheel.setRunHandler((actionId, files, anchor) => runner.run(actionId, files, anchor));
+    const openWheel = (files, anchor) => wheel.show(anchor || screen.getCursorScreenPoint(), { mode: 'click', files });
+    settingsWindow.setWheelOpener(openWheel);
+    settingsWindow.setShelfToggler(() => shelf.toggle());
+    shelf.setWheelOpener(openWheel);
+    // finished files land on the shelf when it's open, ready to drag somewhere
+    runner.onFinished((outputs) => shelf.isOpen() && shelf.add(outputs));
     createTray();
     explorer.start();
+    if (settings.get('shelfOpen')) shelf.open();
+    // first run: show the settings window so it's clear Flick is running
+    if (!settings.get('seenWelcome')) {
+      settingsWindow.open();
+      settings.set('seenWelcome', true);
+    }
 
     // Shift + drag in Explorer: show the wheel under the cursor with options for the dragged files
     hook.on('drag', async (p) => {

@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'" />
+    <title>Flick shelf</title>
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="shelf.css" />
+  </head>
+  <body>
+    <div id="shelf">
+      <div class="bar">
+        <span class="title">Shelf</span>
+        <span id="count"></span>
+        <span class="spacer"></span>
+        <button id="all" class="pill" title="Open the wheel for everything on the shelf">Convert all</button>
+        <button id="clear" class="icon" title="Clear the shelf">
+          <svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12" /></svg>
+        </button>
+        <button id="close" class="icon" title="Close the shelf">
+          <svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17" /></svg>
+        </button>
+      </div>
+      <div id="empty">
+        <strong>Drop files here</strong>
+        <span>to keep them handy</span>
+      </div>
+      <ul id="list"></ul>
+    </div>
+    <script src="shelf.js"></script>
+  </body>
+</html>

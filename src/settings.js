@@ -11,6 +11,9 @@ const DEFAULTS = {
   startWithWindows: false,
   theme: 'system', // system | light | dark
   shelfOpen: false,
+  shelfFiles: [],
+  shelfPos: null, // { x, y } of the shelf window
+  seenWelcome: false,
 };
 
 class Settings extends EventEmitter {

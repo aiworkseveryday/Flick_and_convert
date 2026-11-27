@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'" />
+    <title>Flick</title>
+    <link rel="stylesheet" href="theme.css" />
+    <link rel="stylesheet" href="settings.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 64 64">
+            <circle class="l-ring" cx="32" cy="32" r="22" />
+            <path class="l-slice" d="M32 10 A22 22 0 0 1 51 21 L41 27 A10.5 10.5 0 0 0 32 21.5 Z" />
+            <circle class="l-hub" cx="32" cy="32" r="7" />
+          </svg>
+        </div>
+        <div>
+          <h1>Flick</h1>
+          <p class="tagline">Convert files with a flick, right where they are.</p>
+        </div>
+      </header>
+
+      <button id="drop" class="drop">
+        <strong>Drop files here</strong>
+        <span>or click to pick some</span>
+      </button>
+
+      <h2>How to use</h2>
+      <div class="howto">
+        <div class="how">
+          <div class="keys"><kbd>Shift</kbd><i>+</i><span class="gesture">drag</span></div>
+          <p>Drag a file in Explorer, drop it on a slice</p>
+        </div>
+        <div class="how">
+          <div class="keys"><kbd>Ctrl</kbd><i>+</i><kbd>Alt</kbd><i>+</i><kbd>F</kbd></div>
+          <p>Wheel for the files selected in Explorer</p>
+        </div>
+        <div class="how">
+          <div class="keys"><span class="gesture">Shelf</span></div>
+          <p>Collect files from different folders</p>
+        </div>
+      </div>
+
+      <h2>Settings</h2>
+      <section class="list">
+        <label class="row">
+          <div>
+            <div class="name">Wheel in Explorer</div>
+            <div class="hint">Shift + drag a file to open the wheel</div>
+          </div>
+          <input type="checkbox" class="switch" data-key="shiftDrag" />
+        </label>
+        <label class="row">
+          <div>
+            <div class="name">Reveal results</div>
+            <div class="hint">Open Explorer on finished files</div>
+          </div>
+          <input type="checkbox" class="switch" data-key="reveal" />
+        </label>
+        <label class="row">
+          <div>
+            <div class="name">Save next to original</div>
+            <div class="hint" id="saveHint">Otherwise everything goes to one folder you pick</div>
+          </div>
+          <input type="checkbox" class="switch" data-key="saveNextToOriginal" />
+        </label>
+        <div class="row sub" id="folderRow" hidden>
+          <div>
+            <div class="name">Output folder</div>
+            <div class="hint path" id="folderPath">Not chosen yet</div>
+          </div>
+          <button class="pill" id="pickFolder">Choose…</button>
+        </div>
+        <label class="row">
+          <div>
+            <div class="name">Start with Windows</div>
+            <div class="hint">Keep Flick waiting in the tray</div>
+          </div>
+          <input type="checkbox" class="switch" data-key="startWithWindows" />
+        </label>
+        <div class="row">
+          <div>
+            <div class="name">Theme</div>
+            <div class="hint">Follows Windows unless you pick one</div>
+          </div>
+          <div class="segmented" id="theme">
+            <button data-theme="system">System</button>
+            <button data-theme="light">Light</button>
+            <button data-theme="dark">Dark</button>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <p>Everything happens on this PC. Nothing is uploaded.</p>
+        <button class="pill strong" id="shelf">Open shelf</button>
+      </footer>
+    </main>
+    <script src="settings.js"></script>
+  </body>
+</html>

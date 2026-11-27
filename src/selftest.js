@@ -80,6 +80,19 @@ async function ui(dir) {
     await shot(card.window(), `${theme}-8-card-error`);
     card.hide();
     await wait(300);
+
+    const settingsWindow = require('./settingsWindow');
+    const shelf = require('./shelf');
+    settingsWindow.open();
+    await wait(1200);
+    await shot(settingsWindow.window(), `${theme}-9-settings`);
+    shelf.add([png, pdf, path.join(dir, 'one-page.pdf'), dir]);
+    shelf.open();
+    await wait(1200);
+    await shot(shelf.window(), `${theme}-10-shelf`);
+    shelf.close();
+    settingsWindow.window().close();
+    await wait(300);
   }
 }
 

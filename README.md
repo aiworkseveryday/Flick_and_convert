@@ -1,26 +1,32 @@
 # Flick
 
-A floating bubble for Windows that converts files with a flick, inspired by the iPhone's AssistiveTouch.
+Convert files with a flick, right where they are. A Windows tray app.
 
-Select a file in File Explorer (or drop it on the bubble), hold the bubble, and a ring of options opens
-around it. Slide towards a format and let go. The bubble shows the progress and turns green when the
-new file is saved next to the original.
+Hold **Shift** and start dragging a file in File Explorer: a sliced wheel appears under the cursor with the
+options for that file. Drop the file on a slice and a small card shows the progress; the result is saved
+next to the original (or in one folder you choose).
 
-## Status
+## Ways to open the wheel
 
-**Phase 1 (done):** bubble with edge snapping, smart ring that faces away from the screen edge,
-Explorer selection, drag-and-drop, image conversion (JPG, PNG, WEBP, HEIC input), progress ring.
+- **Shift + drag** a file in File Explorer, then drop it on a slice
+- **Ctrl + Alt + F** opens the wheel for the files selected in Explorer
+- Drop files on the **Settings** window (click the tray icon), or click its drop zone to pick files
+- The **shelf**: a see-through basket for collecting files from different folders. Click a file (or
+  *Convert all*) to open the wheel, or drag files back out into other apps. Finished files land there too.
 
-**Phase 2 (done):** video to MP3/WAV/M4A, video to MP4/GIF, audio conversions (FFmpeg, real progress),
-camera RAW (Sony ARW and others) to JPG in full or fast mode (LibRaw via WebAssembly), shrink video to
-8/16/25/50 MB and images to 200 KB–2 MB, tap the bubble while converting to Stop.
+Slices with `•••` (Shrink, ZIP) open a second wheel; rest on them while dragging, and on the hub to go back.
+Everything follows the Windows light/dark theme.
 
-**Phase 3 (done):** Word to PDF and PDF to Word (through the installed Microsoft Word), PDF to images
-(pdf.js), split, merge, lock with a password (qpdf, AES-256), images to one PDF, ZIP and password-locked ZIP,
-extract ZIP / 7z / tar.gz (7-Zip) and RAR (unrar), with a password window for locked archives.
+## What it converts
 
-**Coming next:**
-- Phase 4: OCR copy text, background removal, favourites slot, keyboard shortcut, right-click menu, installer
+- **Images:** JPG, PNG, WEBP (HEIC input), images to one PDF, shrink to 200 KB–2 MB
+- **Camera RAW** (Sony ARW and others): JPG from the full RAW or the built-in preview (LibRaw, WebAssembly)
+- **Video / audio:** MP3, WAV, M4A, MP4, GIF, shrink video to 8/16/25/50 MB (FFmpeg)
+- **Word ↔ PDF** through the installed Microsoft Word
+- **PDF:** images, split, merge, lock with a password (qpdf, AES-256)
+- **Archives:** ZIP, ZIP with a password, extract ZIP / 7z / tar.gz (7-Zip) and RAR
+
+**Still to come:** OCR (copy text from images), background removal, PDF shrink, installer.
 
 ## Run
 
@@ -29,4 +35,4 @@ npm install
 npm start
 ```
 
-Right-click the tray icon to hide the bubble or quit.
+Flick lives in the tray. Click the tray icon for settings; right-click it to open the shelf or quit.
