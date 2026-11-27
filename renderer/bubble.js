@@ -35,16 +35,15 @@ function center() {
   return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 }
 
+// The ring is laid out around the window centre, so wait until the window really is full size.
 function waitForResize(expected) {
   return new Promise((resolve) => {
-    if (window.innerWidth === expected) return resolve();
-    const done = () => {
-      window.removeEventListener('resize', done);
-      clearTimeout(t);
-      resolve();
+    const start = performance.now();
+    const check = () => {
+      if (window.innerWidth === expected || performance.now() - start > 600) resolve();
+      else requestAnimationFrame(check);
     };
-    const t = setTimeout(done, 150);
-    window.addEventListener('resize', done);
+    check();
   });
 }
 

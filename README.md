@@ -15,8 +15,11 @@ Explorer selection, drag-and-drop, image conversion (JPG, PNG, WEBP, HEIC input)
 camera RAW (Sony ARW and others) to JPG in full or fast mode (LibRaw via WebAssembly), shrink video to
 8/16/25/50 MB and images to 200 KB–2 MB, tap the bubble while converting to Stop.
 
+**Phase 3 (done):** Word to PDF and PDF to Word (through the installed Microsoft Word), PDF to images
+(pdf.js), split, merge, lock with a password (qpdf, AES-256), images to one PDF, ZIP and password-locked ZIP,
+extract ZIP / 7z / tar.gz (7-Zip) and RAR (unrar), with a password window for locked archives.
+
 **Coming next:**
-- Phase 3: Word to PDF (via MS Word), PDF to Word, PDF merge/split/images, ZIP and unzip, passwords
 - Phase 4: OCR copy text, background removal, favourites slot, keyboard shortcut, right-click menu, installer
 
 ## Run

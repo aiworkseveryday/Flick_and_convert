@@ -1,5 +1,6 @@
 # Converts with the installed Microsoft Word (no window shown).
 # Env: FLICK_IN, FLICK_OUT, FLICK_MODE = pdf | docx
+# word.js switches off Word's "convert your PDF" notice around docx runs and restores it afterwards.
 $ErrorActionPreference = 'Stop'
 $in = $env:FLICK_IN
 $out = $env:FLICK_OUT
@@ -17,7 +18,7 @@ foreach ($p in Get-Process WINWORD -ErrorAction SilentlyContinue) {
   if ($before -notcontains $p.Id) { [Console]::Out.WriteLine("PID $($p.Id)"); [Console]::Out.Flush() }
 }
 $word.Visible = $false
-$word.DisplayAlerts = 0   # wdAlertsNone: no "Word will now convert your PDF" prompt
+$word.DisplayAlerts = 0   # wdAlertsNone
 $doc = $null
 try {
   # FileName, ConfirmConversions, ReadOnly, AddToRecentFiles, PasswordDocument

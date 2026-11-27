@@ -10,6 +10,8 @@ protocol.registerSchemesAsPrivileged([
 const explorer = require('./src/explorer');
 const { actionsFor } = require('./src/actions');
 const { runJob } = require('./src/jobs');
+const { askPassword } = require('./src/prompt');
+const { isCancelled } = require('./src/errors');
 
 const SMALL = 72; // idle window: bubble + progress ring
 const BIG = 360; // window while the ring menu is open
@@ -152,13 +154,20 @@ ipcMain.handle('run', async (_e, { actionId, files }) => {
   if (abort) return { ok: false, error: 'Already converting' };
   abort = new AbortController();
   try {
-    const outputs = await runJob(actionId, files, abort.signal, (p) => {
-      if (!win.isDestroyed()) win.webContents.send('progress', p);
-    });
+    const ask = (info) => askPassword(info, { x: smallPos.x + SMALL / 2, y: smallPos.y + SMALL / 2 });
+    const outputs = await runJob(
+      actionId,
+      files,
+      abort.signal,
+      (p) => {
+        if (!win.isDestroyed()) win.webContents.send('progress', p);
+      },
+      ask,
+    );
     lastOutput = outputs[outputs.length - 1] || null;
     return { ok: true, outputs };
   } catch (err) {
-    if (abort.signal.aborted) return { ok: false, cancelled: true };
+    if (abort.signal.aborted || isCancelled(err)) return { ok: false, cancelled: true };
     return { ok: false, error: String(err && err.message ? err.message : err) };
   } finally {
     abort = null;

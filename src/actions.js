@@ -41,76 +41,74 @@ const IMAGE_SIZES = [
   { id: 'img-shrink-1024', label: '1 MB' },
   { id: 'img-shrink-2048', label: '2 MB' },
 ];
-
-// soon: shown greyed out on the ring until a later phase builds it
-const SOON = {
-  word: [{ id: 'word-pdf', label: 'PDF' }],
-  pdf: [
-    { id: 'pdf-word', label: 'Word' },
-    { id: 'pdf-images', label: 'Images' },
-    { id: 'pdf-merge', label: 'Merge' },
-    { id: 'pdf-compress', label: 'Shrink' },
-  ],
-  archive: [{ id: 'unzip', label: 'Extract' }],
-  folder: [{ id: 'zip', label: 'ZIP' }],
-  other: [{ id: 'zip', label: 'ZIP' }],
-};
+const ZIP_OPTIONS = [
+  { id: 'zip', label: 'ZIP' },
+  { id: 'zip-lock', label: 'ZIP', sub: 'password' },
+];
+const ZIP_MENU = { id: 'zip-menu', label: 'ZIP', children: ZIP_OPTIONS };
 
 function actionsFor(files) {
   if (!files || files.length === 0) return { kind: 'none', actions: [] };
   const kinds = [...new Set(files.map(kindOf))].filter((k) => k !== 'missing');
   if (kinds.length === 0) return { kind: 'none', actions: [] };
-  if (kinds.length > 1) {
-    return { kind: 'mixed', actions: [{ id: 'zip', label: 'ZIP', soon: true }] };
-  }
-  const kind = kinds[0];
-  const zipSoon = { id: 'zip', label: 'ZIP', soon: true };
+  const kind = kinds.length > 1 ? 'mixed' : kinds[0];
+  const many = files.length > 1;
 
-  if (kind === 'image') {
-    const actions = [];
-    if (!sameFormat(files, ['jpg', 'jpeg'])) actions.push({ id: 'img-jpg', label: 'JPG' });
-    if (!sameFormat(files, ['png'])) actions.push({ id: 'img-png', label: 'PNG' });
-    if (!sameFormat(files, ['webp'])) actions.push({ id: 'img-webp', label: 'WEBP' });
-    actions.push({ id: 'img-shrink', label: 'Shrink', children: IMAGE_SIZES });
-    actions.push({ id: 'img-bg', label: 'No BG', soon: true });
-    actions.push({ id: 'img-ocr', label: 'Text', soon: true });
-    actions.push(zipSoon);
-    return { kind, actions };
+  switch (kind) {
+    case 'image': {
+      const actions = [];
+      if (!sameFormat(files, ['jpg', 'jpeg'])) actions.push({ id: 'img-jpg', label: 'JPG' });
+      if (!sameFormat(files, ['png'])) actions.push({ id: 'img-png', label: 'PNG' });
+      if (!sameFormat(files, ['webp'])) actions.push({ id: 'img-webp', label: 'WEBP' });
+      actions.push({ id: 'img-pdf', label: 'PDF', sub: many ? 'one file' : undefined });
+      actions.push({ id: 'img-shrink', label: 'Shrink', children: IMAGE_SIZES });
+      actions.push({ id: 'img-bg', label: 'No BG', soon: true });
+      actions.push({ id: 'img-ocr', label: 'Text', soon: true });
+      actions.push(ZIP_MENU);
+      return { kind, actions };
+    }
+    case 'raw':
+      return {
+        kind,
+        actions: [{ id: 'raw-jpg-full', label: 'JPG', sub: 'full' }, { id: 'raw-jpg-fast', label: 'JPG', sub: 'fast' }, ZIP_MENU],
+      };
+    case 'video': {
+      const actions = [
+        { id: 'media-mp3', label: 'MP3' },
+        { id: 'media-wav', label: 'WAV' },
+        { id: 'media-aac', label: 'M4A' },
+        { id: 'video-gif', label: 'GIF' },
+      ];
+      if (!sameFormat(files, ['mp4'])) actions.push({ id: 'video-mp4', label: 'MP4' });
+      actions.push({ id: 'video-shrink', label: 'Shrink', children: VIDEO_SIZES });
+      actions.push(ZIP_MENU);
+      return { kind, actions };
+    }
+    case 'audio': {
+      const actions = [];
+      if (!sameFormat(files, ['mp3'])) actions.push({ id: 'media-mp3', label: 'MP3' });
+      if (!sameFormat(files, ['wav'])) actions.push({ id: 'media-wav', label: 'WAV' });
+      if (!sameFormat(files, ['m4a', 'aac'])) actions.push({ id: 'media-aac', label: 'M4A' });
+      actions.push(ZIP_MENU);
+      return { kind, actions };
+    }
+    case 'word':
+      return { kind, actions: [{ id: 'word-pdf', label: 'PDF' }, ZIP_MENU] };
+    case 'pdf': {
+      const actions = [{ id: 'pdf-word', label: 'Word' }, { id: 'pdf-images', label: 'Images' }];
+      if (many) actions.push({ id: 'pdf-merge', label: 'Merge' });
+      else actions.push({ id: 'pdf-split', label: 'Split' });
+      actions.push({ id: 'pdf-lock', label: 'Lock' });
+      actions.push({ id: 'pdf-shrink', label: 'Shrink', soon: true });
+      actions.push(ZIP_MENU);
+      return { kind, actions };
+    }
+    case 'archive':
+      return { kind, actions: [{ id: 'unzip', label: 'Extract' }] };
+    default:
+      // folders, other files and mixed selections
+      return { kind, actions: ZIP_OPTIONS };
   }
-
-  if (kind === 'raw') {
-    return {
-      kind,
-      actions: [
-        { id: 'raw-jpg-full', label: 'JPG', sub: 'full' },
-        { id: 'raw-jpg-fast', label: 'JPG', sub: 'fast' },
-        zipSoon,
-      ],
-    };
-  }
-
-  if (kind === 'video') {
-    const actions = [
-      { id: 'media-mp3', label: 'MP3' },
-      { id: 'media-wav', label: 'WAV' },
-      { id: 'media-aac', label: 'M4A' },
-      { id: 'video-gif', label: 'GIF' },
-    ];
-    if (!sameFormat(files, ['mp4'])) actions.push({ id: 'video-mp4', label: 'MP4' });
-    actions.push({ id: 'video-shrink', label: 'Shrink', children: VIDEO_SIZES });
-    return { kind, actions };
-  }
-
-  if (kind === 'audio') {
-    const actions = [];
-    if (!sameFormat(files, ['mp3'])) actions.push({ id: 'media-mp3', label: 'MP3' });
-    if (!sameFormat(files, ['wav'])) actions.push({ id: 'media-wav', label: 'WAV' });
-    if (!sameFormat(files, ['m4a', 'aac'])) actions.push({ id: 'media-aac', label: 'M4A' });
-    actions.push(zipSoon);
-    return { kind, actions };
-  }
-
-  return { kind, actions: (SOON[kind] || []).map((a) => ({ ...a, soon: true })) };
 }
 
 module.exports = { actionsFor, kindOf, extOf };
