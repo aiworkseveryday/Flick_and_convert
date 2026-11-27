@@ -5,7 +5,7 @@
 //                                          real converters and prints timings
 const fs = require('fs');
 const path = require('path');
-const { app, nativeTheme, screen } = require('electron');
+const { app, nativeTheme, screen, desktopCapturer } = require('electron');
 const { runJob } = require('./jobs');
 
 // packaged builds have no console, so results also go to <folder>/selftest.log
@@ -40,6 +40,13 @@ async function ui(dir) {
   const card = require('./card');
   const runner = require('./runner');
   const shot = async (w, name) => fs.writeFileSync(path.join(dir, `${name}.png`), (await w.webContents.capturePage()).toPNG());
+  // the whole screen, to see windows next to each other
+  const desktopShot = async (name) => {
+    const d = screen.getPrimaryDisplay();
+    const size = { width: Math.round(d.size.width * d.scaleFactor), height: Math.round(d.size.height * d.scaleFactor) };
+    const [src] = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: size });
+    fs.writeFileSync(path.join(dir, `${name}.png`), src.thumbnail.toPNG());
+  };
   const wjs = (code) => wheel.window().webContents.executeJavaScript(code);
   const wa = screen.getPrimaryDisplay().workArea;
   const anchor = { x: wa.x + wa.width / 2, y: wa.y + wa.height / 2 - 80 };
@@ -51,7 +58,7 @@ async function ui(dir) {
     wjs(`(() => {
       const s = ${label === 'hub' ? "'hub'" : `slices.find((s) => s.action.label === ${JSON.stringify(label)})`};
       if (s === 'hub') return setHot('hub');
-      const [x, y] = pt((R_IN + R_OUT) / 2, s.mid);
+      const [x, y] = pt((L.rIn + L.rOut) / 2, s.mid);
       setHot(hitTest(x, y));
     })()`);
 
@@ -79,7 +86,7 @@ async function ui(dir) {
     // right-click Word: it moves to the top with a star and the caption confirms
     await wjs(`(() => {
       const s = slices.find((s) => s.action.label === 'Word');
-      const [x, y] = pt((R_IN + R_OUT) / 2, s.mid);
+      const [x, y] = pt((L.rIn + L.rOut) / 2, s.mid);
       document.dispatchEvent(new MouseEvent('contextmenu', { clientX: x, clientY: y, bubbles: true }));
     })()`);
     await wait(500);
@@ -109,8 +116,31 @@ async function ui(dir) {
     shelf.open();
     await wait(1200);
     await shot(shelf.window(), `${theme}-10-shelf`);
-    shelf.close();
     settingsWindow.window().close();
+
+    // clicking a shelf file fans the options out of the nearest shelf corner, away from the screen edge
+    for (const [where, left] of [['right', wa.x + wa.width - 344], ['left', wa.x + 24]]) {
+      shelf.window().setPosition(left, wa.y + 200);
+      await wait(300);
+      for (const [which, index] of [['top', 0], ['bottom', 3]]) {
+        await shelf.window().webContents.executeJavaScript(`(() => {
+          const li = document.querySelectorAll('.item')[${index}];
+          const r = li.getBoundingClientRect();
+          const x = window.screenX + r.left + r.width / 2;
+          const y = window.screenY + r.top + r.height / 2;
+          li.dispatchEvent(new MouseEvent('click', { screenX: x, screenY: y, clientX: r.left + 5, clientY: r.top + 5, bubbles: true }));
+        })()`);
+        await wait(700);
+        // the top one shows the image options; the bottom one (a folder) opens its sub-options
+        if (which === 'bottom') await wjs(`(() => { const s = slices.find((s) => s.action.children); if (s) choose(s, state.files); })()`);
+        else await hover('Shrink');
+        await wait(300);
+        await desktopShot(`${theme}-11-fan-${where}-${which}`);
+        wheel.hide();
+        await wait(300);
+      }
+    }
+    shelf.close();
     await wait(300);
   }
 }

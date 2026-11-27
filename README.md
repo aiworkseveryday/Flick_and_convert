@@ -13,7 +13,8 @@ next to the original (or in one folder you choose).
 - **Right-click** files or folders › *Show more options* › **Convert with Flick** (Shift + right-click goes straight there)
 - Drop files on the **Settings** window (click the tray icon), or click its drop zone to pick files
 - The **shelf**: a see-through basket for collecting files from different folders. Click a file (or
-  *Convert all*) to open the wheel, or drag files back out into other apps. Finished files land there too.
+  *Convert all*) and the options fan out from the nearest shelf corner, on the side away from the screen
+  edge. Drag files back out into other apps. Finished files land there too.
 
 Slices with `•••` (Shrink, ZIP) open a second wheel; rest on them while dragging, and on the hub to go back.
 **Right-click a slice** to pin it as the favourite for that kind of file: it moves to the top with a ★

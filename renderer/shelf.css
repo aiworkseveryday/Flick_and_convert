@@ -1,6 +1,6 @@
-/* The shelf is half see-through: 50% of the surface colour, so the desktop shows through. */
+/* The shelf is a quarter see-through: 75% of the surface colour, so the desktop shows faintly through. */
 :root {
-  --glass: rgba(255, 255, 255, 0.5);
+  --glass: rgba(255, 255, 255, 0.75);
   --glass-line: rgba(255, 255, 255, 0.55);
   --chip: rgba(255, 255, 255, 0.62);
   --chip-hover: rgba(255, 255, 255, 0.85);
@@ -8,7 +8,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --glass: rgba(29, 26, 24, 0.5);
+    --glass: rgba(29, 26, 24, 0.75);
     --glass-line: rgba(255, 255, 255, 0.14);
     --chip: rgba(40, 36, 33, 0.68);
     --chip-hover: rgba(52, 47, 43, 0.88);

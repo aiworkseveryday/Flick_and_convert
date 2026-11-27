@@ -99,9 +99,21 @@ ipcMain.on('shelf:add', (_e, paths) => add(paths));
 ipcMain.on('shelf:remove', (_e, p) => save(files().filter((f) => f !== p)));
 ipcMain.on('shelf:clear', () => save([]));
 ipcMain.on('shelf:close', () => close());
-ipcMain.on('shelf:wheel', (_e, { paths, x, y }) => {
+// The options fan out from the shelf corner nearest the click, on the side away from the screen
+// edge: shelf on the right, they open to its left; a file in the lower half, from the bottom corner.
+const FAN_GAP = 6;
+ipcMain.on('shelf:wheel', (_e, { paths, x, y, panel }) => {
   const existing = paths.filter((p) => fs.existsSync(p));
-  if (existing.length) openWheel(existing, { x, y });
+  if (!existing.length) return;
+  if (!panel) return openWheel(existing, { x, y });
+  const wa = screen.getDisplayNearestPoint({ x: panel.left, y: panel.top }).workArea;
+  const onRight = (panel.left + panel.right) / 2 > wa.x + wa.width / 2;
+  const lower = y > (panel.top + panel.bottom) / 2;
+  const corner = {
+    x: Math.round(onRight ? panel.left - FAN_GAP : panel.right + FAN_GAP),
+    y: Math.round(lower ? panel.bottom - 20 : panel.top + 20),
+  };
+  openWheel(existing, corner, { side: onRight ? 'left' : 'right' });
 });
 // drag a parked file out of the shelf into Explorer, a browser upload, an email...
 ipcMain.on('shelf:drag', (e, p) => {

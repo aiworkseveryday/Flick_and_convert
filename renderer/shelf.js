@@ -3,6 +3,12 @@ const shelf = $('shelf');
 const list = $('list');
 let items = [];
 
+// where the shelf panel is on screen, so the options can fan out from its nearest corner
+function panel() {
+  const r = shelf.getBoundingClientRect();
+  return { left: window.screenX + r.left, top: window.screenY + r.top, right: window.screenX + r.right, bottom: window.screenY + r.bottom };
+}
+
 function render(next) {
   items = next;
   const n = items.length;
@@ -26,7 +32,7 @@ function render(next) {
       window.flick.send('shelf:remove', it.path);
     });
     li.addEventListener('click', (e) => {
-      if (!it.missing) window.flick.send('shelf:wheel', { paths: [it.path], x: e.screenX, y: e.screenY });
+      if (!it.missing) window.flick.send('shelf:wheel', { paths: [it.path], x: e.screenX, y: e.screenY, panel: panel() });
     });
     li.addEventListener('dragstart', (e) => {
       e.preventDefault();
@@ -41,7 +47,7 @@ window.flick.on('shelf:files', render);
 
 $('all').addEventListener('click', (e) => {
   const paths = items.filter((it) => !it.missing).map((it) => it.path);
-  if (paths.length) window.flick.send('shelf:wheel', { paths, x: e.screenX, y: e.screenY });
+  if (paths.length) window.flick.send('shelf:wheel', { paths, x: e.screenX, y: e.screenY, panel: panel() });
 });
 $('clear').addEventListener('click', () => window.flick.send('shelf:clear'));
 $('close').addEventListener('click', () => window.flick.send('shelf:close'));

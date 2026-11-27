@@ -2,20 +2,20 @@
 //   drag mode:  opened by Shift + drag in Explorer. Hover a slice and drop the file on it.
 //               Hovering a slice that has more options (Shrink, ZIP) opens them after a moment.
 //   click mode: opened by the shortcut, the shelf, or after a drop on the hub. Click a slice.
+// The layout comes from main: a full wheel, or a half wheel (fan) opening out of a shelf corner.
 const SVG = 'http://www.w3.org/2000/svg';
-const C = 180; // wheel centre
-const R_OUT = 152;
-const R_IN = 66;
-const R_HUB = 60;
 const GAP = 16; // includes the 10px rounding stroke, so about 6px shows
 const DWELL_MS = 550;
 
 const stage = document.getElementById('stage');
+const svgEl = document.getElementById('wheel');
 const slicesEl = document.getElementById('slices');
 const hubEl = document.getElementById('hub');
 const hubPill = document.getElementById('hubPill');
 const captionEl = document.getElementById('caption');
 
+// sizes and angles of the current layout (see src/wheel.js); angles are SVG degrees, 0 = right, 90 = down
+let L = null;
 let state = null; // { mode, files, hub, levels: [{ actions, caption, parent }], hot, dropped }
 let slices = [];
 let dwellTimer = null;
@@ -23,25 +23,61 @@ let dwellTimer = null;
 // ---------- drawing ----------
 
 const rad = (deg) => (deg * Math.PI) / 180;
-const pt = (r, deg) => [C + r * Math.cos(rad(deg)), C + r * Math.sin(rad(deg))];
+const pt = (r, deg) => [L.cx + r * Math.cos(rad(deg)), L.cy + r * Math.sin(rad(deg))];
 
 function sectorPath(a0, a1) {
-  const po = ((GAP / 2 / R_OUT) * 180) / Math.PI;
-  const pi = ((GAP / 2 / R_IN) * 180) / Math.PI;
-  const [ox0, oy0] = pt(R_OUT, a0 + po);
-  const [ox1, oy1] = pt(R_OUT, a1 - po);
-  const [ix1, iy1] = pt(R_IN, a1 - pi);
-  const [ix0, iy0] = pt(R_IN, a0 + pi);
+  const { rIn, rOut } = L;
+  const po = ((GAP / 2 / rOut) * 180) / Math.PI;
+  const pi = ((GAP / 2 / rIn) * 180) / Math.PI;
+  const [ox0, oy0] = pt(rOut, a0 + po);
+  const [ox1, oy1] = pt(rOut, a1 - po);
+  const [ix1, iy1] = pt(rIn, a1 - pi);
+  const [ix0, iy0] = pt(rIn, a0 + pi);
   const largeO = a1 - a0 - 2 * po > 180 ? 1 : 0;
   const largeI = a1 - a0 - 2 * pi > 180 ? 1 : 0;
-  return `M${ox0},${oy0} A${R_OUT},${R_OUT} 0 ${largeO} 1 ${ox1},${oy1} L${ix1},${iy1} A${R_IN},${R_IN} 0 ${largeI} 0 ${ix0},${iy0} Z`;
+  return `M${ox0},${oy0} A${rOut},${rOut} 0 ${largeO} 1 ${ox1},${oy1} L${ix1},${iy1} A${rIn},${rIn} 0 ${largeI} 0 ${ix0},${iy0} Z`;
 }
 
 function ringPath() {
   // a single option fills the whole ring
-  const o = R_OUT - 5;
-  const i = R_IN + 5;
-  return `M${C - o},${C} a${o},${o} 0 1 0 ${2 * o},0 a${o},${o} 0 1 0 ${-2 * o},0 Z M${C - i},${C} a${i},${i} 0 1 1 ${2 * i},0 a${i},${i} 0 1 1 ${-2 * i},0 Z`;
+  const { cx, cy } = L;
+  const o = L.rOut - 5;
+  const i = L.rIn + 5;
+  return `M${cx - o},${cy} a${o},${o} 0 1 0 ${2 * o},0 a${o},${o} 0 1 0 ${-2 * o},0 Z M${cx - i},${cy} a${i},${i} 0 1 1 ${2 * i},0 a${i},${i} 0 1 1 ${-2 * i},0 Z`;
+}
+
+// a full circle, or for a fan the half facing away from the shelf
+function discPath(r) {
+  const { cx, cy } = L;
+  if (L.kind === 'wheel') return `M${cx - r},${cy} a${r},${r} 0 1 0 ${2 * r},0 a${r},${r} 0 1 0 ${-2 * r},0 Z`;
+  return `M${cx},${cy - r} A${r},${r} 0 0 ${L.side === 'left' ? 0 : 1} ${cx},${cy + r} Z`;
+}
+
+// The edge the first slice starts from, and which way round the slices go. The wheel's first slice
+// is centred at the top; a fan's first slice starts at the top and the rest go down the far side.
+const startAngle = (span) => (L.kind === 'wheel' ? -90 - span / 2 : L.start);
+const dirOf = () => (L.kind === 'wheel' ? 1 : L.dir);
+
+function applyLayout(layout) {
+  L = layout;
+  stage.classList.toggle('fan', L.kind === 'fan');
+  Object.assign(stage.style, { width: `${L.w}px`, height: `${L.h}px`, transformOrigin: `${L.cx}px ${L.cy}px` });
+  const svgH = L.captionY - 6;
+  svgEl.setAttribute('width', L.w);
+  svgEl.setAttribute('height', svgH);
+  svgEl.setAttribute('viewBox', `0 0 ${L.w} ${svgH}`);
+  for (const id of ['rim', 'rimGloss']) document.getElementById(id).setAttribute('d', discPath(L.rim));
+  document.getElementById('hubWell').setAttribute('d', discPath(L.rHub));
+  hubEl.setAttribute('d', discPath(L.hub));
+  // a fan's hub pill sits in the visible half of its hub
+  const pillX = L.kind === 'wheel' ? L.cx : L.cx + (L.side === 'left' ? -1 : 1) * (L.hub / 2 + 2);
+  Object.assign(hubPill.style, { left: `${pillX}px`, top: `${L.cy}px` });
+  // the caption sits under the wheel, or for a fan lines up with the shelf edge
+  const cap = { top: `${L.captionY}px`, left: '', right: '' };
+  if (L.kind === 'wheel') cap.left = `${L.cx}px`;
+  else if (L.side === 'left') cap.right = '6px';
+  else cap.left = '6px';
+  Object.assign(captionEl.style, cap);
 }
 
 function el(tag, attrs) {
@@ -59,15 +95,17 @@ function draw() {
     updateLabels();
     return;
   }
-  const span = 360 / n;
+  const span = L.sweep / n;
+  const first = startAngle(span);
+  const ring = n === 1 && L.kind === 'wheel'; // a fan's single option is still a half ring
   level.actions.forEach((action, i) => {
-    const mid = -90 + i * span;
+    const mid = first + dirOf() * (i + 0.5) * span;
     const g = el('g', { class: 'slice' + (action.soon ? ' soon' : '') + (action.fav ? ' fav' : '') });
-    const path = el('path', { d: n === 1 ? ringPath() : sectorPath(mid - span / 2, mid + span / 2), 'fill-rule': 'evenodd' });
+    const path = el('path', { d: ring ? ringPath() : sectorPath(mid - span / 2, mid + span / 2), 'fill-rule': 'evenodd' });
     g.appendChild(path);
 
-    const rText = (R_IN + R_OUT) / 2 + 4;
-    const [tx, ty] = n === 1 ? [C, C - rText] : pt(rText, mid);
+    const rText = (L.rIn + L.rOut) / 2 + 4;
+    const [tx, ty] = ring ? [L.cx, L.cy - rText] : pt(rText, mid);
     // "soon", a short note like "full", or three dots when the slice opens more options
     const sub = action.soon ? 'soon' : action.sub || (action.children ? '•••' : '');
     const label = el('text', { x: tx, y: sub ? ty - 6 : ty });
@@ -79,7 +117,7 @@ function draw() {
       g.appendChild(s);
     }
     if (action.fav) {
-      const [sx, sy] = n === 1 ? [C, C - R_OUT + 14] : pt(R_OUT - 13, mid);
+      const [sx, sy] = ring ? [L.cx, L.cy - L.rOut + 14] : pt(L.rOut - 13, mid);
       const star = el('text', { x: sx, y: sy, class: 'star' });
       star.textContent = '★';
       g.appendChild(star);
@@ -126,17 +164,18 @@ function updateLabels() {
 // ---------- hit testing ----------
 
 function hitTest(x, y) {
-  const dx = x - C;
-  const dy = y - C;
+  const dx = x - L.cx;
+  const dy = y - L.cy;
   const d = Math.hypot(dx, dy);
-  if (d < R_HUB) return 'hub';
-  const reach = state.mode === 'drag' ? R_OUT + 60 : R_OUT + 14;
+  if (d < L.rHub) return 'hub';
+  const reach = state.mode === 'drag' ? L.rOut + 60 : L.rOut + 14;
   if (d > reach || !slices.length) return null;
-  if (slices.length === 1) return slices[0];
   const ang = (Math.atan2(dy, dx) * 180) / Math.PI;
   const span = slices[0].span;
-  const idx = Math.floor((((ang + 90 + span / 2) % 360) + 360) % 360 / span) % slices.length;
-  return slices[idx];
+  // how far round from the first slice's edge, going the way the slices go
+  const along = (((dirOf() * (ang - startAngle(span))) % 360) + 360) % 360;
+  if (along >= L.sweep) return null;
+  return slices[Math.min(Math.floor(along / span), slices.length - 1)];
 }
 
 function setHot(hot) {
@@ -190,6 +229,7 @@ function close() {
 
 window.flick.on('wheel:show', (payload) => {
   clearTimeout(dwellTimer);
+  applyLayout(payload.layout);
   state = {
     mode: payload.mode,
     files: payload.files || [],

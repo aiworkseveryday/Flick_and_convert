@@ -120,7 +120,7 @@ function start() {
     wheel.create();
     card.create();
     wheel.setRunHandler((actionId, files, anchor) => runner.run(actionId, files, anchor));
-    const openWheel = (files, anchor) => wheel.show(anchor || screen.getCursorScreenPoint(), { mode: 'click', files });
+    const openWheel = (files, anchor, fan) => wheel.show(anchor || screen.getCursorScreenPoint(), { mode: 'click', files, fan });
     settingsWindow.setWheelOpener(openWheel);
     settingsWindow.setShelfToggler(() => shelf.toggle());
     shelf.setWheelOpener(openWheel);
